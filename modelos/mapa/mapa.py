@@ -23,7 +23,7 @@ L.reset()
 R = 40.0         # radio de cada isla
 TOP = 3.0        # altura de la meseta
 D = 100.0        # distancia del centro a cada isla
-HUB_R = 22.0     # radio de la isla central
+HUB_R = 27.0     # radio de la isla central
 PW = 2.2         # medio ancho del camino
 
 # ------------------------------------------------------------------ materiales (con caché)
@@ -55,6 +55,11 @@ LEAF = M("Hoja_Palmera", (0.2, 0.6, 0.15))
 COCO = M("Coco", (0.35, 0.2, 0.08))
 RED = M("Rojo", (0.85, 0.08, 0.06), 0.1, 0.4)
 WHITE = M("Blanco", (0.95, 0.95, 0.95))
+LAGOON = M("Laguna", (0.2, 0.8, 0.8), 0.0, 0.1)
+FOAM = M("Espuma", (0.9, 0.97, 1.0), 0.0, 0.5)
+CLOUD = M("Nube", (1.0, 1.0, 1.0), 0.0, 0.9)
+ICE = M("Hielo_Lago", (0.7, 0.9, 1.0), 0.1, 0.1)
+LAVA = M("Lava", (1.0, 0.35, 0.02), emission=(1.0, 0.3, 0.0), strength=10)
 
 THEMES = [
     dict(name="Tropical", grass=(0.35, 0.72, 0.2), grass2=(0.3, 0.62, 0.17), dirt=(0.66, 0.45, 0.24),
@@ -78,8 +83,20 @@ THEMES = [
 ]
 
 # Camino en zigzag (unidades de R): portal -> casa. La casa queda del lado del centro (-X).
-PATH = [(0.66, 0.0), (0.45, 0.0), (0.45, 0.45), (0.15, 0.45), (0.15, -0.45), (-0.15, -0.45), (-0.15, 0.35),
-        (-0.4, 0.35), (-0.4, 0.0), (-0.44, 0.0)]
+PATH = [(0.66, 0.0), (0.46, 0.0), (0.46, 0.45), (0.2, 0.45), (0.2, -0.45), (-0.06, -0.45), (-0.06, 0.0),
+        (-0.44, 0.0)]
+# variantes para que cada isla tenga su propio recorrido (todas van del portal a la casa)
+PATHS = [
+    PATH,
+    [(x, -y) for x, y in PATH],                                                        # espejado
+    [(0.66, 0.0), (0.5, 0.0), (0.5, -0.5), (-0.2, -0.5), (-0.2, -0.2), (0.25, -0.2), (0.25, 0.4),
+     (-0.4, 0.4), (-0.4, 0.0), (-0.44, 0.0)],                                          # espiral
+    [(0.66, 0.0), (0.3, 0.0), (0.3, -0.55), (0.0, -0.55), (0.0, 0.55), (-0.3, 0.55), (-0.3, 0.0),
+     (-0.44, 0.0)],                                                                    # S larga
+]
+LANDMARK_POS = [(0.3, -0.66), (0.3, 0.66), (0.05, 0.68), (0.47, 0.5)]
+VARIANT = [0, 0, 0, 0, 0, 0]   # todas iguales: ninguna isla tiene ventaja
+PADS = [("Tienda", (-0.33, 0.36)), ("Mejoras", (-0.33, -0.36))]
 
 
 # ------------------------------------------------------------------ utilidades
@@ -144,6 +161,68 @@ def to_collection(objs, name):
 
 
 # ------------------------------------------------------------------ terreno
+def rim_at(a, seed):
+    return R * (1 + 0.1 * noise.noise(Vector((math.cos(a) * 1.5, math.sin(a) * 1.5, seed))))
+
+
+def underside(rimf, name, th_rock, th_rock2, th_top, z0=0.12, depth=1.0, seed=0.0):
+    """Roca colgante debajo de una isla flotante. rimf(a) = radio del borde en el ángulo a."""
+    n = 40
+    rings = [(1.0, z0), (0.95, z0 - 2.5), (0.82, z0 - 6), (0.62, z0 - 11), (0.4, z0 - 17), (0.18, z0 - 23)]
+    verts = []
+    for ri, (sc, z) in enumerate(rings):
+        for k in range(n):
+            a = 2 * math.pi * k / n
+            j = 1.0 if ri == 0 else 1 + 0.12 * noise.noise(Vector((math.cos(a) * 2, math.sin(a) * 2, seed + ri)))
+            zz = z0 + (z - z0) * depth + (0 if ri == 0 else 1.2 * noise.noise(Vector((a, ri, seed))))
+            verts.append((math.cos(a) * rimf(a) * sc * j, math.sin(a) * rimf(a) * sc * j, zz))
+    tip = len(verts)
+    verts.append((0, 0, z0 - 29 * depth))
+    faces, mats = [], []
+    faces.append(tuple(reversed(range(n))))                        # tapa de arriba
+    mats.append(0)
+    for ri in range(len(rings) - 1):
+        for k in range(n):
+            a, b = ri * n + k, ri * n + (k + 1) % n
+            faces.append((a, b, b + n, a + n))
+            mats.append(1 if ri == 0 else (2 if (ri + k // 5) % 2 else 3))
+    last = (len(rings) - 1) * n
+    for k in range(n):
+        faces.append((last + k, last + (k + 1) % n, tip))
+        mats.append(3)
+    me = bpy.data.meshes.new(name)
+    me.from_pydata(verts, [], faces)
+    for m in (th_top, th_top, th_rock, th_rock2):
+        me.materials.append(m)
+    for f, m in zip(me.polygons, mats):
+        f.material_index = m
+        f.use_smooth = False
+    o = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(o)
+    return o
+
+
+def shore(seed, name):
+    """Agua turquesa poco profunda + anillo de espuma siguiendo la costa."""
+    n = 72
+    angs = [2 * math.pi * k / n for k in range(n)]
+    out = []
+    lv = [(0, 0, 0.075)] + [(math.cos(a) * rim_at(a, seed) * 1.3, math.sin(a) * rim_at(a, seed) * 1.3, 0.075)
+                            for a in angs]
+    lf = [(0, k + 1, (k + 1) % n + 1) for k in range(n)]
+    fv = [(math.cos(a) * rim_at(a, seed) * sc, math.sin(a) * rim_at(a, seed) * sc, 0.095)
+          for sc in (1.0, 1.06) for a in angs]
+    ff = [(k, (k + 1) % n, n + (k + 1) % n, n + k) for k in range(n)]
+    for nm, (v, f), mat in ((f"{name}_Laguna", (lv, lf), LAGOON), (f"{name}_Espuma", (fv, ff), FOAM)):
+        me = bpy.data.meshes.new(nm)
+        me.from_pydata(v, [], f)
+        me.materials.append(mat)
+        o = bpy.data.objects.new(nm, me)
+        bpy.context.scene.collection.objects.link(o)
+        out.append(o)
+    return out
+
+
 def terrain(th, pts, seed, name):
     N = 80
     half = 1.15 * R
@@ -151,8 +230,7 @@ def terrain(th, pts, seed, name):
     verts, heights = [], {}
 
     def rim(x, y):
-        a = math.atan2(y, x)
-        return R * (1 + 0.1 * noise.noise(Vector((math.cos(a) * 1.5, math.sin(a) * 1.5, seed))))
+        return rim_at(math.atan2(y, x), seed)
 
     for j in range(N + 1):
         for i in range(N + 1):
@@ -180,7 +258,11 @@ def terrain(th, pts, seed, name):
     for j in range(N):
         for i in range(N):
             a = j * (N + 1) + i
-            faces.append((a, a + 1, a + N + 2, a + N + 1))
+            f = (a, a + 1, a + N + 2, a + N + 1)
+            cx = sum(verts[v][0] for v in f) / 4
+            cy = sum(verts[v][1] for v in f) / 4
+            if math.hypot(cx, cy) / rim(cx, cy) <= 1.0:   # fuera del borde no hay piso: la isla flota
+                faces.append(f)
     me = bpy.data.meshes.new(name)
     me.from_pydata(verts, [], faces)
     mats = [M(f"{th['name']}_Pasto", th["grass"]), M(f"{th['name']}_Pasto2", th["grass2"]),
@@ -540,17 +622,157 @@ def landmark(kind, c, th, rng, accent):
     return P
 
 
+# ------------------------------------------------------------------ props
+def crate(p, rng, h=0.0):
+    s = rng.uniform(0.8, 1.1)
+    q = p + Vector((0, 0, h + 0.45 * s))
+    return [box((0.9 * s, 0.9 * s, 0.9 * s), q, WOOD, rot=(0, 0, rng.uniform(0, 1)), bevel=0.05),
+            box((0.95 * s, 0.95 * s, 0.12), q, WOOD_D, rot=(0, 0, rng.uniform(0, 1)), bevel=0)]
+
+
+def barrel(p, rng, h=0.0):
+    q = p + Vector((0, 0, h + 0.55))
+    return [cyl(0.4, 1.1, q, WOOD, verts=10, bevel=0.03),
+            torus(0.41, 0.03, q + Vector((0, 0, 0.3)), IRON, seg=10, minor=4),
+            torus(0.41, 0.03, q - Vector((0, 0, 0.3)), IRON, seg=10, minor=4)]
+
+
+def sign(p, face, board_mat, h=0.0):
+    q = p + Vector((0, 0, h))
+    return [cyl(0.1, 1.8, q + Vector((0, 0, 0.9)), WOOD_D, verts=6, bevel=0),
+            box((0.12, 1.4, 0.8), q + Vector((0, 0, 1.6)), board_mat, rot=(0, 0, face), bevel=0.03),
+            box((0.14, 1.5, 0.1), q + Vector((0, 0, 2.05)), WOOD_D, rot=(0, 0, face), bevel=0)]
+
+
+def cloud(p, rng):
+    return [sphere(rng.uniform(2.5, 4.5), p + Vector((rng.uniform(-5, 5), rng.uniform(-3, 3), rng.uniform(-0.5, 1))),
+                   CLOUD, subdiv=1, scale=(1.3, 1, 0.6)) for _ in range(rng.randint(4, 6))]
+
+
+def extras(th, rng, spot, accent):
+    """Detalles propios de cada tema. `spot(r)` devuelve un lugar libre en la meseta."""
+    P, g = [], TOP - 0.2
+    n = th["name"]
+    if n == "Tropical":
+        for k in range(3):                                                     # sombrillas
+            a2 = 0.4 + k * 0.35
+            q = Vector((math.cos(a2), math.sin(a2), 0)) * R * 0.97 + Vector((0, 0, 0.35))
+            col = M(f"Sombrilla_{k}", [(1, 0.3, 0.3), (1, 0.9, 0.2), (0.2, 0.6, 1)][k], 0.0, 0.6)
+            P.append(cyl(0.06, 2.4, q + Vector((0, 0, 1.2)), WHITE, verts=6, bevel=0))
+            P.append(cone(1.4, 0.6, q + Vector((0, 0, 2.5)), col, verts=8))
+            P.append(box((1.8, 0.9, 0.05), q + Vector((1.3, 0, 0.05)), col, rot=(0, 0, a2), bevel=0))
+    elif n == "Desierto":
+        c = spot(5.0)                                                          # oasis
+        if c:
+            P.append(cyl(4.6, 0.2, c + Vector((0, 0, g + 0.05)), M("Desierto_Arena", th["sand"]), verts=12, bevel=0.05))
+            P.append(cyl(3.6, 0.1, c + Vector((0, 0, g + 0.18)), LAGOON, verts=12, bevel=0))
+            for k in range(3):
+                a = k * 2.1
+                P += palm(c + Vector((math.cos(a), math.sin(a), 0)) * 4.2, rng, g)
+            for k in range(6):
+                a = k * 1.05 + 0.5
+                P.append(rock(c + Vector((math.cos(a) * 4.2, math.sin(a) * 4.2, g + 0.3)), 0.6, STONE, rng))
+        for k in range(2):
+            c = spot(2.0)
+            if c:
+                P.append(sphere(0.35, c + Vector((0, 0, g + 0.2)), WHITE, subdiv=1, scale=(1.4, 1, 0.8)))   # calavera
+                P.append(strut(c + Vector((0.4, 0, g + 0.1)), c + Vector((1.6, 0.3, g + 0.1)), 0.15, 0.15, WHITE, bevel=0))
+    elif n == "Volcan":
+        for k in range(3):
+            c = spot(3.5)
+            if c:
+                r = rng.uniform(1.8, 2.8)
+                P.append(cyl(r + 0.6, 0.3, c + Vector((0, 0, g + 0.05)), M("Roca_Volcanica", (0.12, 0.1, 0.1)), verts=9, bevel=0.1))
+                P.append(cyl(r, 0.1, c + Vector((0, 0, g + 0.22)), LAVA, verts=9, bevel=0))
+                for j in range(5):
+                    a = j * 1.25 + rng.uniform(0, 0.5)
+                    P.append(rock(c + Vector((math.cos(a) * (r + 0.5), math.sin(a) * (r + 0.5), g + 0.3)), 0.5, M("Roca_Volcanica", (0.12, 0.1, 0.1)), rng))
+    elif n == "Nieve":
+        c = spot(5.0)                                                          # lago congelado
+        if c:
+            P.append(cyl(4.2, 0.1, c + Vector((0, 0, g + 0.1)), ICE, verts=12, bevel=0))
+            for k in range(5):
+                a = k * 1.3
+                P.append(cone(0.3, rng.uniform(1.0, 2.0), c + Vector((math.cos(a) * 4.6, math.sin(a) * 4.6, g + 0.6)), ICE, verts=5))
+        for k in range(2):
+            c = spot(1.5)
+            if c:
+                for j in range(3):
+                    P.append(sphere(0.8 - j * 0.2, c + Vector((0, 0, g + 0.6 + j * 1.05)), WHITE, subdiv=2))
+                P.append(cone(0.1, 0.5, c + Vector((0.55, 0, g + 2.7)), M("Zanahoria", (1, 0.45, 0.05)), rot=(0, math.pi / 2, 0), verts=6))
+                P.append(cyl(0.35, 0.5, c + Vector((0, 0, g + 3.3)), IRON, verts=8, bevel=0))
+    elif n == "Bosque":
+        for k in range(3):
+            c = spot(2.5)
+            if c:
+                a = rng.uniform(0, 3)
+                P.append(cyl(0.45, 3.5, c + Vector((0, 0, g + 0.45)), WOOD, rot=(math.pi / 2, 0, a), verts=8, bevel=0.05))
+                P.append(cyl(0.35, 0.02, c + Vector((math.cos(a + 1.57) * -1.76, math.sin(a + 1.57) * -1.76, g + 0.45)), M("Madera_Clara", (0.7, 0.55, 0.35)), rot=(math.pi / 2, 0, a), verts=8, bevel=0))
+        for k in range(6):
+            c = spot(1.0)
+            if c:
+                P += mushroom(c, rng, g, RED)
+                P.append(sphere(0.07, c + Vector((0.2, 0.1, g + 1.0)), WHITE, subdiv=1))
+        c = spot(3.0)                                                          # carpa de campamento + fogata
+        if c:
+            P.append(prism(3.0, 2.6, 2.0, c + Vector((0, 0, g)), M("Carpa", (0.85, 0.45, 0.1), 0.0, 0.7)))
+            f = c + Vector((3.0, 0, g))
+            for j in range(4):
+                P.append(cyl(0.1, 1.0, f + Vector((0, 0, 0.15)), WOOD_D, rot=(math.pi / 2, 0, j * 0.8), verts=5, bevel=0))
+            P.append(cone(0.35, 0.9, f + Vector((0, 0, 0.55)), LAVA, verts=6))
+    elif n == "Cristal":
+        for k in range(4):
+            c = spot(2.0)
+            if c:
+                h = g + rng.uniform(6, 9)
+                P.append(cone(1.6, 2.4, c + Vector((0, 0, h - 1.0)), M("Cristal_Roca", th["rock"]), rot=(math.pi, 0, 0), verts=6))
+                P.append(cyl(1.6, 0.5, c + Vector((0, 0, h + 0.4)), M("Cristal_Roca", th["rock"]), verts=6, bevel=0.1))
+                P += crystal(c, rng, h + 0.6, accent)
+    return P
+
+
+def islet(p, th, rng, rock_mat, accent):
+    P = [cyl(3.4, 0.8, p + Vector((0, 0, -0.1)), M(f"{th['name']}_Pasto", th["grass"]), verts=9, bevel=0.2),
+         cone(3.4, 7.0, p + Vector((0, 0, -4.0)), rock_mat, rot=(math.pi, 0, 0), verts=9),
+         rock(p + Vector((1.2, 0.8, 0.5)), 1.2, rock_mat, rng)]
+    t = th["trees"]
+    q = p + Vector((-0.8, -0.5, 0))
+    if t == "palm":
+        P += palm(q, rng, 0.3)
+    elif t in ("forest", "snowpine"):
+        P += pine(q, rng, 0.3, snow=(t == "snowpine"))
+    elif t == "cactus":
+        P += cactus(q, rng, 0.3)
+    elif t == "dead":
+        P += dead_tree(q, rng, 0.3)
+    else:
+        P += crystal(q, rng, 0.3, accent)
+    return P
+
+
 # ------------------------------------------------------------------ isla completa
 def island(idx, th):
     rng = random.Random(100 + idx)
     seed = idx * 10.0
-    pts = [Vector((x * R, y * R, 0)) for x, y in PATH]
+    pts = [Vector((x * R, y * R, 0)) for x, y in PATHS[VARIANT[idx]]]
     objs = []
     name = f"Isla{idx + 1}_{th['name']}"
     accent = M(f"{th['name']}_Acento", th["accent"], emission=th["accent"], strength=2)
     flat = M(f"{th['name']}_Color", th["accent"], 0.0, 0.6)
     rock_mat = M(f"{th['name']}_Roca", th["rock"])
     objs.append(terrain(th, pts, seed, f"{name}_Terreno"))
+    objs.append(underside(lambda a: rim_at(a, seed) * 1.005, f"{name}_Base_Flotante",
+                          M(f"{th['name']}_Roca", th["rock"]), M(f"{th['name']}_Roca2", th["rock2"]),
+                          M(f"{th['name']}_Tierra_Borde", tuple(c * 0.75 for c in th["dirt"])), seed=seed))
+    # rocas colgando por debajo
+    hang = []
+    for k in range(10):
+        a = rng.uniform(0, 2 * math.pi)
+        r = rim_at(a, seed) * rng.uniform(0.45, 0.8)
+        z = -rng.uniform(3, 9)
+        hang.append(cone(rng.uniform(1.0, 2.2), rng.uniform(4, 8), Vector((math.cos(a) * r, math.sin(a) * r, z - 2)),
+                         M(f"{th['name']}_Roca2", th["rock2"]), rot=(math.pi, 0, 0), verts=6))
+    objs.append(join(hang, f"{name}_Rocas_Colgantes", (0, 0, 0)))
     # bordillos + faroles en las esquinas
     part = curbs(pts, STONE)
     for i in range(1, len(pts) - 1):
@@ -566,11 +788,14 @@ def island(idx, th):
     L.transform([objs[-1]], Matrix.Scale(1.3, 4), hc + Vector((0, 0, TOP - 0.15)))
     pc = pts[0] + Vector((2.5, 0, 0))
     objs.append(join(portal(pc, rng, rock_mat), f"{name}_Portal", pc))
-    lm = Vector((0.3 * R, -0.66 * R, 0))
+    lm = Vector(LANDMARK_POS[VARIANT[idx]] + (0,)) * R
     objs.append(join(landmark(th["landmark"], lm, th, rng, accent), f"{name}_Monumento", lm))
 
     # decoración esparcida en la meseta
-    taken = [(hc, 10.5), (pc, 8.0), (lm, 8.0)]
+    wa_ = 1.3
+    taken = [(hc, 10.5), (pc, 8.0), (lm, 8.0),
+             (Vector((math.cos(wa_), math.sin(wa_), 0)) * rim_at(wa_, seed) * 0.66, 5.0)]
+    taken += [(Vector((px * R, py * R, 0)), 6.5) for _, (px, py) in PADS]
     trees, rocks, small = [], [], []
 
     def free(p, r):
@@ -623,6 +848,58 @@ def island(idx, th):
                 small += mushroom(p, rng, ground, accent)
             else:
                 rocks.append(rock(p + Vector((0, 0, ground + 0.1)), rng.uniform(0.3, 0.6), rock_mat, rng))
+    # espacios vacíos marcados para construir la Tienda y las Mejoras
+    for label, (px, py) in PADS:
+        c = Vector((px * R, py * R, 0))
+        pad = [box((8.0, 8.0, 0.3), c + Vector((0, 0, TOP - 0.05)), STONE, bevel=0.1),
+               box((7.2, 7.2, 0.05), c + Vector((0, 0, TOP + 0.12)), STONE_D, bevel=0)]
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                pad.append(cyl(0.25, 0.9, c + Vector((sx * 3.8, sy * 3.8, TOP + 0.4)), WOOD_D, verts=6, bevel=0))
+                pad.append(sphere(0.2, c + Vector((sx * 3.8, sy * 3.8, TOP + 0.9)), accent, subdiv=1))
+        pad += sign(c + Vector((4.6, 0, 0)), 0.0, M("Cartel_Tienda", (0.2, 0.75, 0.3), 0.0, 0.6) if label == "Tienda"
+                    else M("Cartel_Mejoras", (0.2, 0.5, 1.0), 0.0, 0.6), TOP - 0.2)
+        objs.append(join(pad, f"{name}_Espacio_{label}", c + Vector((0, 0, TOP))))
+
+    # props: cajas y barriles en el patio de la casa, carteles en la casa y el portal
+    props = []
+    for s in (-1, 1):
+        base_p = hc + Vector((8.5, s * 5.5, 0))
+        props += crate(base_p, rng, ground) + crate(base_p + Vector((1.1, 0.2 * s, 0)), rng, ground)
+        props += crate(base_p + Vector((0.5, 0.1, 0)), rng, ground + 0.9)
+        props += barrel(base_p + Vector((-1.3, 0.4 * s, 0)), rng, ground)
+    props += sign(pts[-2] + Vector((0, PW + 1.6, 0)), 0.0, flat, ground)
+    props += sign(pc + Vector((-3.5, PW + 3.0, 0)), 0.0, RED, ground)
+
+    def spot(r):
+        for _ in range(400):
+            p = Vector((rng.uniform(-R, R), rng.uniform(-R, R), 0))
+            if free(p, r):
+                taken.append((p, r))
+                return p
+        return None
+
+    props += extras(th, rng, spot, accent)
+    fluid = {"Volcan": LAVA, "Nieve": ICE, "Cristal": accent}.get(th["name"], M("Agua_Cascada", (0.2, 0.6, 0.95), 0.0, 0.1))
+    wa = 1.3
+    wd = Vector((math.cos(wa), math.sin(wa), 0))
+    edge = rim_at(wa, seed)
+    pond = wd * (edge * 0.66)
+    props.append(cyl(3.0, 0.4, pond + Vector((0, 0, TOP - 0.25)), STONE, verts=10, bevel=0.1))
+    props.append(cyl(2.6, 0.1, pond + Vector((0, 0, TOP - 0.02)), fluid, verts=10, bevel=0))
+    props.append(strut(pond + Vector((0, 0, TOP - 0.05)), wd * (edge * 1.02) + Vector((0, 0, TOP - 0.05)), 1.6, 0.12, fluid, bevel=0))
+    fall_top = wd * (edge * 1.03)
+    for k in range(6):                                                           # la cascada cae al vacío
+        z0 = TOP - 0.1 - k * 4.5
+        props.append(box((0.35, 1.6 + k * 0.25, 4.6), fall_top + wd * (0.15 * k) + Vector((0, 0, z0 - 2.3)), fluid,
+                         rot=(0, 0, wa), bevel=0))
+    props += cloud(fall_top + wd * 2.0 + Vector((0, 0, -27)), rng)
+    for k in range(2):                                                         # islotes
+        a = rng.choice([0.6, 2.0, -0.6, -2.0]) + rng.uniform(-0.25, 0.25) + (0.0 if k == 0 else math.pi / 3)
+        props += islet(Vector((math.cos(a), math.sin(a), 0)) * R * 1.45 + Vector((0, 0, rng.uniform(-4, 5))),
+                       th, rng, rock_mat, accent)
+    objs += join_chunks(props, f"{name}_Detalles")
+
     # playa: rocas en el agua y (tropical) palmeras en la arena
     for k in range(10):
         a = rng.uniform(0, 2 * math.pi)
@@ -652,11 +929,11 @@ def island(idx, th):
 
 # ------------------------------------------------------------------ isla central con la palanca
 def hub():
+    crng_b = random.Random(5)
     P, deco = [], []
     rng = random.Random(7)
     P.append(cyl(HUB_R + 1.5, TOP + 3, Vector((0, 0, (TOP - 3) / 2 - 0.5)), M("Centro_Roca", (0.55, 0.3, 0.22)), verts=24, bevel=0.2, r2=HUB_R))
     P.append(cyl(HUB_R, 0.4, Vector((0, 0, TOP - 0.3)), M("Centro_Pasto", (0.35, 0.72, 0.2)), verts=24, bevel=0.1))
-    P.append(cyl(HUB_R + 3.5, 0.3, Vector((0, 0, 0.15)), M("Centro_Arena", (0.95, 0.85, 0.58)), verts=24, bevel=0.1))
     P.append(cyl(13.0, 0.25, Vector((0, 0, TOP - 0.05)), STONE, verts=24, bevel=0.05))
     for k in range(24):                                                      # baldosas radiales
         a = math.radians(k * 15)
@@ -705,11 +982,51 @@ def hub():
             t = Vector((-d.y, d.x, 0)) * 4.2 * s
             P += lamp(d * 18.0 + t + Vector((0, 0, TOP)))
     # árboles del centro
-    for k in range(10):
-        a = math.radians(k * 36 + 18)
-        p = Vector((math.cos(a), math.sin(a), 0)) * 19.0
+    for k in range(12):
+        a = math.radians(90 + 60 * (k // 2) + (14 if k % 2 else -14))         # a los lados de cada puente
+        p = Vector((math.cos(a), math.sin(a), 0)) * 23.5
         deco += palm(p, rng, TOP - 0.1) if k % 2 else round_tree(p, rng, TOP - 0.1)
-    return [join(P, "Centro_Plaza", (0, 0, 0)), join(deco, "Centro_Arboles", (0, 0, 0))]
+    for k in range(4):                                                       # racimos de globos
+        a = math.radians(45 + k * 90)
+        base_p = Vector((math.cos(a), math.sin(a), 0)) * 7.5 + Vector((0, 0, TOP + 0.1))
+        deco.append(box((0.5, 0.5, 0.3), base_p + Vector((0, 0, 0.15)), GOLD, bevel=0.05))
+        for j in range(5):
+            col = [(1, 0.2, 0.3), (1, 0.85, 0.1), (0.2, 0.8, 1), (0.6, 0.3, 1), (0.3, 1, 0.4)][j]
+            m = M(f"Globo_{j}", col, 0.1, 0.3)
+            top = base_p + Vector((crng_b.uniform(-1.2, 1.2), crng_b.uniform(-1.2, 1.2), 5.5 + crng_b.uniform(0, 1.5)))
+            deco.append(rod(base_p + Vector((0, 0, 0.3)), top - Vector((0, 0, 0.6)), 0.02, WHITE, verts=4))
+            deco.append(sphere(0.6, top, m, subdiv=2, scale=(1, 1, 1.2)))
+    base = underside(lambda a: HUB_R + 1.5, "Centro_Base_Flotante", M("Centro_Roca", (0.55, 0.3, 0.22)),
+                     M("Centro_Roca2", (0.45, 0.24, 0.17)), M("Centro_Roca", (0.55, 0.3, 0.22)), z0=-3.4, depth=0.9,
+                     seed=77.0)
+    # 6 carteles TOP (uno por categoría) con pedestal para la estatua del #1
+    tops = []
+    names = ["Oleadas", "Enemigos", "Giros", "Torretas", "Monedas", "Tiempo"]
+    cols = [(1, 0.8, 0.1), (1, 0.25, 0.25), (0.8, 0.3, 1), (0.2, 0.8, 1), (0.3, 1, 0.4), (1, 0.5, 0.1)]
+    for k in range(6):
+        a = math.radians(120 + 60 * k)                                       # entre puentes
+        d = Vector((math.cos(a), math.sin(a), 0))
+        t = Vector((-d.y, d.x, 0))
+        c = d * 21.5 + Vector((0, 0, TOP))
+        col = M(f"Top_{names[k]}", cols[k], 0.2, 0.4)
+        T = [box((7.4, 0.5, 0.4), c + Vector((0, 0, 0.2)), STONE_D, rot=(0, 0, a + math.pi / 2), bevel=0.08)]
+        for s in (-1, 1):
+            T.append(box((0.4, 0.4, 6.0), c + t * 3.4 * s + Vector((0, 0, 3.0)), GOLD, bevel=0.06))
+        panel = box((6.4, 0.2, 4.2), c + Vector((0, 0, 3.6)) - d * 0.05, M("Top_Pantalla", (0.03, 0.04, 0.08), 0.2, 0.3),
+                    rot=(0, 0, a + math.pi / 2), bevel=0)
+        panel.name = panel.data.name = f"Centro_Top_{names[k]}_Pantalla"      # acá va el SurfaceGui
+        T.append(box((6.8, 0.3, 0.8), c + Vector((0, 0, 6.1)) - d * 0.05, col, rot=(0, 0, a + math.pi / 2), bevel=0.05))
+        T.append(box((6.8, 0.3, 0.25), c + Vector((0, 0, 1.4)) - d * 0.05, GOLD, rot=(0, 0, a + math.pi / 2), bevel=0))
+        T.append(cone(0.5, 0.6, c + Vector((0, 0, 6.9)), GOLD, verts=5))
+        # pedestal para el #1
+        pc = c - d * 3.2
+        T.append(cyl(1.3, 0.5, pc + Vector((0, 0, 0.25)), STONE, verts=12, bevel=0.06))
+        T.append(cyl(1.0, 1.0, pc + Vector((0, 0, 1.0)), col, verts=12, bevel=0.06))
+        T.append(torus(1.02, 0.06, pc + Vector((0, 0, 1.5)), GOLD, seg=16, minor=4))
+        T.append(box((0.9, 0.08, 0.35), pc + Vector((0, 0, 0.95)) - d * 1.02, GOLD, rot=(0, 0, a + math.pi / 2), bevel=0))
+        tops.append(join(T, f"Centro_Top_{names[k]}", c))
+        tops.append(panel)
+    return [join(P, "Centro_Plaza", (0, 0, 0)), join(deco, "Centro_Arboles", (0, 0, 0)), base] + tops
 
 
 def bridge(i):
@@ -732,18 +1049,26 @@ def bridge(i):
         for s in (-1, 1):
             p = start + u * k + side * 1.9 * s
             P.append(cyl(0.15, 1.4, p + Vector((0, 0, z + 0.6)), WOOD_D, verts=6, bevel=0))
-            P.append(cyl(0.25, z + 1.5, p + Vector((0, 0, (z - 1.5) / 2)), WOOD_D, verts=6, bevel=0))
     for s in (-1, 1):
         P.append(strut(start + side * 1.9 * s + Vector((0, 0, z + 1.2)), end + side * 1.9 * s + Vector((0, 0, z + 1.2)),
                        0.08, 0.08, M("Soga", (0.7, 0.55, 0.3)), bevel=0))
+    for k in range(0, n, 2):                                                   # vigas de abajo
+        p = start + u * (k + 0.5) + Vector((0, 0, z - 0.2))
+        P.append(box((0.2, 3.9, 0.2), p, WOOD_D, rot=(0, 0, math.atan2(u.y, u.x)), bevel=0))
     return join(P, f"Puente_{i + 1}", start)
 
 
 # ------------------------------------------------------------------ armar todo
 groups = {}
-water = cyl(D + R * 1.6, 0.1, Vector((0, 0, 0.0)), WATER, verts=48, bevel=0)
-water.name = water.data.name = "Agua"
-groups["Centro"] = hub() + [water]
+groups["Centro"] = hub()
+crng = random.Random(42)
+nubes = []
+for k in range(26):
+    a = crng.uniform(0, 2 * math.pi)
+    r = crng.uniform(40, 190)
+    z = crng.uniform(34, 46) if k % 2 else -crng.uniform(30, 45)            # nubes arriba y debajo de las islas
+    nubes += cloud(Vector((math.cos(a) * r, math.sin(a) * r, z)), crng)
+groups["Nubes"] = join_chunks(nubes, "Nubes")
 for i, th in enumerate(THEMES):
     objs = island(i, th)
     ang = math.radians(90 + 60 * i)
@@ -785,6 +1110,8 @@ scene = bpy.context.scene
 for o in scene.objects:
     if "Waypoint" in o.name:
         o.hide_render = True
+    if o.name.startswith("Nubes"):
+        o.visible_shadow = False
 world = bpy.data.worlds.new("Cielo")
 scene.world = world
 world.use_nodes = True
@@ -817,10 +1144,12 @@ def shot(name, loc, target, lens=35):
 
 
 isla1 = Vector((0, D, 0))
-shot("vista_mapa_completo", (0, -250, 230), (0, 10, 0), lens=30)
+shot("vista_mapa_completo", (0, -265, 150), (0, 5, -8), lens=30)
+shot("vista_flotante", (-75, -165, -8), (0, -100, -6), lens=35)
 shot("vista_isla_tropical", isla1 + Vector((55, -60, 55)), isla1 + Vector((0, 0, 3)), lens=32)
 # isla 1 rota 90°: local (x, y) -> mundo (-y, x) + (0, D)
 shot("vista_casa", isla1 + Vector((16, -8, 15)), isla1 + Vector((0, -0.44 * R - 5.5, 4)), lens=35)
+shot("vista_tienda_mejoras", isla1 + Vector((0, 10, 20)), isla1 + Vector((0, -18, 3)), lens=30)
 shot("vista_portal", isla1 + Vector((6, 13, 12)), isla1 + Vector((0, 0.66 * R + 2.5, 4)), lens=40)
-shot("vista_centro", (30, -35, 25), (0, 0, 5), lens=35)
+shot("vista_centro", (38, -42, 28), (0, 0, 4), lens=35)
 print("LISTO")

@@ -73,26 +73,34 @@ python torreta_canon/torreta_canon.py
 Variables opcionales: `NO_RENDER=1` (solo exporta), `SAMPLES=64`, `RES=900`.
 
 # Mapa (`mapa/`)
-6 islas, una por jugador, alrededor de una **isla central** con la máquina de la **palanca**. Cada isla está unida al centro por un puente.
+6 **islas flotantes**, una por jugador, alrededor de una **isla central** con la máquina de la **palanca**. Cada isla está unida al centro por un puente colgante.
 
-| Isla | Tema | Monumento |
-|------|------|-----------|
-| 1 | Tropical | Molino |
-| 2 | Bosque | Árbol gigante |
-| 3 | Nieve | Iglú + muñeco de nieve |
-| 4 | Desierto | Pirámide con obeliscos |
-| 5 | Volcán | Volcán con lava |
-| 6 | Cristal | Cristal gigante flotante |
+**Todas las islas son justas:** tienen exactamente el mismo camino (mismo largo y mismos waypoints), el mismo lugar para torretas y los mismos espacios. Solo cambian el tema y la decoración.
+
+| Isla | Tema | Monumento | Cascada |
+|------|------|-----------|---------|
+| 1 | Tropical | Molino | Agua |
+| 2 | Bosque | Árbol gigante | Agua |
+| 3 | Nieve | Iglú + muñeco de nieve | Hielo |
+| 4 | Desierto | Pirámide con obeliscos | Agua |
+| 5 | Volcán | Volcán con lava | Lava |
+| 6 | Cristal | Cristal gigante flotante | Energía |
 
 Cada isla tiene:
 - **Portal-cueva** donde aparecen los enemigos (lado de afuera).
 - **Camino en zigzag** con bordillos y faroles, con lugar libre a los costados para poner torretas.
 - **Casa base** con el **cristal de vida** flotando arriba (lo que atacan los enemigos), cerca y bandera del color del jugador.
+- **Espacio para la Tienda** (`Isla<N>_..._Espacio_Tienda`, cartel verde) y **espacio para las Mejoras** (`..._Espacio_Mejoras`, cartel azul): plataformas vacías de 8×8 al lado de la casa para que pongas ahí esos edificios o NPCs.
 - **Waypoints**: cubitos `Isla<N>_Waypoint_01`, `_02`, ... sobre el camino, en orden desde el portal hasta la casa. En Roblox ponelos con `Transparency = 1`, `CanCollide = false` y `Anchored = true`, y usalos para que los enemigos caminen de uno a otro.
+- Roca colgante debajo, rocas flotando, 2 islotes y una cascada que cae al vacío.
+
+La isla central tiene la máquina de la palanca, globos, faroles y **6 carteles TOP** (Oleadas, Enemigos, Giros, Torretas, Monedas, Tiempo). Cada cartel tiene:
+- una pantalla aparte (`Centro_Top_<Categoria>_Pantalla`) para ponerle un `SurfaceGui` con la tabla;
+- un **pedestal** adelante para la estatua del jugador #1 de esa categoría.
 
 Archivos:
 - `mapa_completo.glb`: todo el mapa en un archivo, con color.
-- `Centro.glb` e `Isla1_Tropical.glb` ... `Isla6_Cristal.glb`: cada parte por separado, por si preferís importarlas de a una (más liviano).
+- `Centro.glb`, `Nubes.glb` e `Isla1_Tropical.glb` ... `Isla6_Cristal.glb`: cada parte por separado, por si preferís importarlas de a una (más liviano).
 - `mapa.blend`: para editar en Blender.
 
 Todas las piezas tienen menos de 20.000 triángulos. Después de importar, marcá todo como `Anchored`.
