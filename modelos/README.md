@@ -104,3 +104,16 @@ Archivos:
 - `mapa.blend`: para editar en Blender.
 
 Todas las piezas tienen menos de 20.000 triángulos. Después de importar, marcá todo como `Anchored`.
+
+# Puestos (`puestos/`)
+Modelos sueltos para poner donde quieras. Todos miran hacia **-Y** (el jugador se para de ese lado). Cada uno tiene su `.glb` con color en su carpeta y una copia en `roblox/`.
+
+| Modelo | Para qué | Partes para programar |
+|--------|----------|------------------------|
+| `puesto_palanca` | Girar gratis ("Rodar") | `Consola` (ponele el `ProximityPrompt`), `Palanca_Brazo` (rota al tirar, el eje está en su origen), `Pedestal_1` ... `Pedestal_5` (ahí aparecen las torretas que salen), `Zona` (piso, vitrinas y faroles) |
+| `puesto_tienda` | Tienda | `Puesto`, `Vendedor`, `Cartel` (para el `SurfaceGui` con "Tienda") |
+| `puesto_equipamientos` | Comprar aceite y mejoras de máquina | `Puesto` (latas y barriles de aceite, engranaje), `Vendedor`, `Cartel` |
+| `puesto_diario` | Recompensa diaria / por unirse al grupo y dar like | `Base` (con corazón y estrella), `Regalo` (se puede animar saltando), `Cartel` |
+| `puesto_mejoras` | Mejoras de "Suerte de tirada" y "Giros" | `Marco`, `Iconos` (trébol y dado), `Panel_Suerte` y `Panel_Giros` (un `SurfaceGui` en cada uno) |
+
+El script `puestos/puestos.py` los genera. Para regenerar uno solo: `python puestos.py puesto_tienda`.
