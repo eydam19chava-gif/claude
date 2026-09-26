@@ -7,6 +7,7 @@ genera vistas previas.
 """
 import math
 import os
+import shutil
 
 import bpy
 from mathutils import Matrix, Vector
@@ -161,108 +162,91 @@ def count_tris(objs):
     return sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in objs)
 
 
-def _roblox_look(mat):
-    """(r, g, b 0-255, Enum.Material) aproximado a partir del material de Blender."""
+def _mat_rgb(mat):
+    """Color sRGB (0-1) de un material: su emisión si brilla, si no su color base."""
     bsdf = mat.node_tree.nodes["Principled BSDF"]
     glow = bsdf.inputs["Emission Strength"].default_value > 0
     col = bsdf.inputs["Emission Color" if glow else "Base Color"].default_value
-    rgb = [round(255 * min(1.0, max(0.0, c)) ** (1 / 2.2)) for c in col[:3]]  # lineal -> sRGB
-    if glow:
-        kind = "Neon"
-    elif bsdf.inputs["Metallic"].default_value >= 0.7:
-        kind = "Metal"
-    else:
-        kind = "SmoothPlastic"
-    return rgb, kind
+    return [min(1.0, max(0.0, c)) ** (1 / 2.2) for c in col[:3]]
 
 
-def _split_by_material(objs):
-    """Separa cada grupo en una malla por material: Base_Neon, Pivot_Blindaje, ..."""
-    pieces = []
+def _bake_palette(objs, png_path, cells=8, cell_px=8):
+    """Pinta todos los materiales en una textura de paleta y deja un solo material con esa imagen.
+
+    Así el color viaja dentro de la textura (y dentro del .glb), que es lo que Roblox respeta.
+    """
+    mats = []
     for o in objs:
-        o.select_set(True)
-        bpy.context.view_layer.objects.active = o
-        bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
+        for m in o.data.materials:
+            if m not in mats:
+                mats.append(m)
+    assert len(mats) <= cells * cells, "demasiados materiales para la paleta"
+    size = cells * cell_px
+    img = bpy.data.images.new("Paleta", size, size, alpha=False)
+    px = [0.0] * (size * size * 4)
+    for i, m in enumerate(mats):
+        cx, cy = i % cells, i // cells
+        r, g, b = _mat_rgb(m)
+        for y in range(cy * cell_px, (cy + 1) * cell_px):
+            for x in range(cx * cell_px, (cx + 1) * cell_px):
+                j = (y * size + x) * 4
+                px[j:j + 4] = [r, g, b, 1.0]
+    img.pixels = px
+    img.filepath_raw = png_path
+    img.file_format = "PNG"
+    img.save()
+
+    pal = bpy.data.materials.new("Paleta")
+    pal.use_nodes = True
+    nodes = pal.node_tree.nodes
+    bsdf = nodes["Principled BSDF"]
+    bsdf.inputs["Metallic"].default_value = 0.3
+    bsdf.inputs["Roughness"].default_value = 0.5
+    tex = nodes.new("ShaderNodeTexImage")
+    tex.image = img
+    tex.interpolation = "Closest"
+    pal.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+
     for o in objs:
-        group = o.name
-        bpy.ops.object.select_all(action="DESELECT")
-        o.select_set(True)
-        bpy.context.view_layer.objects.active = o
-        bpy.ops.object.mode_set(mode="EDIT")
-        bpy.ops.mesh.select_all(action="SELECT")
-        bpy.ops.mesh.separate(type="MATERIAL")
-        bpy.ops.object.mode_set(mode="OBJECT")
-        for piece in list(bpy.context.selected_objects):
-            used = {p.material_index for p in piece.data.polygons}
-            mat = piece.data.materials[used.pop()]
-            piece.data.materials.clear()
-            piece.data.materials.append(mat)
-            piece.name = piece.data.name = f"{group}_{mat.name}"
-            pieces.append(piece)
-    return pieces
-
-
-_LUA = """-- Colores y materiales para {name} (generado automáticamente).
--- Uso: poné este Script dentro del Model importado, o seleccioná el Model
--- y pegá el código en la barra de comandos (View > Command Bar).
-local COLORES = {{
-{rows}
-}}
-
-local model = if script then script.Parent else game:GetService("Selection"):Get()[1]
-local grupos = {{}}
-for _, part in model:GetDescendants() do
-\tif part:IsA("MeshPart") then
-\t\tlocal c = COLORES[part.Name]
-\t\tif c then
-\t\t\tpart.Color = Color3.fromRGB(c[1], c[2], c[3])
-\t\t\tpart.Material = c[4]
-\t\tend
-\t\t-- soldar cada pieza a la primera de su grupo (Base / Pivot / Barrel / Laser)
-\t\tlocal grupo = string.match(part.Name, "^(%a+)_")
-\t\tif grupo then
-\t\t\tif grupos[grupo] then
-\t\t\t\tlocal w = Instance.new("WeldConstraint")
-\t\t\t\tw.Part0, w.Part1 = grupos[grupo], part
-\t\t\t\tw.Parent = part
-\t\t\telse
-\t\t\t\tgrupos[grupo] = part
-\t\t\tend
-\t\tend
-\tend
-end
-if grupos.Base then grupos.Base.Anchored = true end
-print("Torreta lista:", model.Name)
-"""
+        me = o.data
+        uv = me.uv_layers.active or me.uv_layers.new(name="UVMap")
+        for poly in me.polygons:
+            i = mats.index(me.materials[poly.material_index])
+            u = ((i % cells) + 0.5) / cells
+            v = ((i // cells) + 0.5) / cells
+            for li in poly.loop_indices:
+                uv.data[li].uv = (u, v)
+        me.materials.clear()
+        me.materials.append(pal)
 
 
 def export(out, name, objs):
+    """Guarda el .blend original y exporta para Roblox con color en textura de paleta.
+
+    - <name>.glb : UN solo archivo con la textura adentro (recomendado para Roblox).
+    - <name>.obj + <name>.mtl + <name>_paleta.png : versión OBJ (el color va en el PNG).
+    - <name>.fbx : con la textura incrustada.
+    """
     os.makedirs(out, exist_ok=True)
     print(f"TRIANGULOS {name}: {count_tris(objs)}")
     path = os.path.join(out, name)
     bpy.ops.wm.save_as_mainfile(filepath=path + ".blend", check_existing=False)
     for f in os.listdir(out):
-        if f.endswith(".blend1"):
+        if f.endswith(".blend1") or f == "colores_roblox.lua":
             os.remove(os.path.join(out, f))
+
+    _bake_palette(objs, path + "_paleta.png")
     bpy.ops.object.select_all(action="DESELECT")
     bpy.ops.export_scene.gltf(filepath=path + ".glb", export_format="GLB")
-
-    # FBX/OBJ para Roblox: una malla por material (Roblox usa un color/material por MeshPart)
-    pieces = _split_by_material(objs)
-    bpy.ops.object.select_all(action="DESELECT")
-    for p in pieces:
-        p.select_set(True)
-    bpy.ops.export_scene.fbx(filepath=path + ".fbx", use_selection=True, apply_unit_scale=True,
-                             object_types={"MESH"}, mesh_smooth_type="FACE", add_leaf_bones=False)
-    bpy.ops.wm.obj_export(filepath=path + ".obj", export_materials=True, export_selected_objects=True,
+    bpy.ops.export_scene.fbx(filepath=path + ".fbx", apply_unit_scale=True, object_types={"MESH"},
+                             mesh_smooth_type="FACE", add_leaf_bones=False, path_mode="COPY", embed_textures=True)
+    bpy.ops.wm.obj_export(filepath=path + ".obj", export_materials=True, path_mode="STRIP",
                           forward_axis="NEGATIVE_Z", up_axis="Y")
-    rows = []
-    for p in sorted(pieces, key=lambda p: p.name):
-        (r, g, b), kind = _roblox_look(p.data.materials[0])
-        rows.append(f'\t["{p.name}"] = {{{r}, {g}, {b}, Enum.Material.{kind}}},')
-    with open(os.path.join(out, "colores_roblox.lua"), "w", encoding="utf-8") as f:
-        f.write(_LUA.format(name=name, rows="\n".join(rows)))
-    # volver a los objetos originales para el render
+    # copia de un solo archivo por torreta en modelos/roblox/
+    roblox_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "roblox")
+    os.makedirs(roblox_dir, exist_ok=True)
+    shutil.copy(path + ".glb", os.path.join(roblox_dir, name + ".glb"))
+    # volver a los materiales originales para el render
     bpy.ops.wm.open_mainfile(filepath=path + ".blend")
 
 
