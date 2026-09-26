@@ -24,6 +24,11 @@ Tiene **un solo archivo `.glb` por torreta**, con los colores incluidos.
 | 8 | `torreta_francotirador` | Alcance enorme, crítico | Amarillo | ~4.800 | Base, Pivot, Barrel |
 | 9 | `torreta_mortero` | Disparo parabólico en área | Verde lima | ~5.200 | Base, Pivot, Barrel |
 | 10 | `torreta_gatling` | DPS altísimo | Dorado | ~3.500 | Base, Pivot, Barrel, Spinner |
+| 11 | `torreta_colmena` | Lanza drones | Amarillo/negro | ~3.900 | Base, Pivot (drones orbitando) |
+| 12 | `torreta_mech` | Robot bípedo, doble cañón | Verde azulado/rojo | ~7.600 | Base, Pivot, Barrel |
+| 13 | `torreta_ballesta` | Virote que atraviesa | Magenta | ~4.800 | Base, Pivot, Barrel |
+| 14 | `torreta_sonica` | Aturde / empuja | Blanco/rosa | ~4.700 | Base, Pivot, Barrel |
+| 15 | `torreta_acido` | Veneno, corroe armadura | Verde tóxico | ~5.600 | Base, Pivot, Barrel |
 
 Todas están por debajo del límite de **20.000 triángulos por malla** de Roblox.
 
@@ -32,6 +37,7 @@ Todas están por debajo del límite de **20.000 triángulos por malla** de Roblo
 - **Pivot**: gira sobre el eje vertical para apuntar a los enemigos.
 - **Barrel**: el cañón. Sube y baja y retrocede al disparar.
 - **Spinner** (gatling): los 6 cañones que giran al disparar.
+- En la **colmena**, el `Pivot` es el anillo con los drones: hacelo girar constante.
 - **Laser** (ametralladora): la mira láser. Podés borrarla y usar un `Beam` en su lugar.
 
 Consejo: después de importar, podés poner en **Neon** las partes que quieras que brillen, o agregarles un `PointLight`.
