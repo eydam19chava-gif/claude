@@ -71,3 +71,28 @@ O en Python con `pip install bpy`:
 python torreta_canon/torreta_canon.py
 ```
 Variables opcionales: `NO_RENDER=1` (solo exporta), `SAMPLES=64`, `RES=900`.
+
+# Mapa (`mapa/`)
+6 islas, una por jugador, alrededor de una **isla central** con la máquina de la **palanca**. Cada isla está unida al centro por un puente.
+
+| Isla | Tema | Monumento |
+|------|------|-----------|
+| 1 | Tropical | Molino |
+| 2 | Bosque | Árbol gigante |
+| 3 | Nieve | Iglú + muñeco de nieve |
+| 4 | Desierto | Pirámide con obeliscos |
+| 5 | Volcán | Volcán con lava |
+| 6 | Cristal | Cristal gigante flotante |
+
+Cada isla tiene:
+- **Portal-cueva** donde aparecen los enemigos (lado de afuera).
+- **Camino en zigzag** con bordillos y faroles, con lugar libre a los costados para poner torretas.
+- **Casa base** con el **cristal de vida** flotando arriba (lo que atacan los enemigos), cerca y bandera del color del jugador.
+- **Waypoints**: cubitos `Isla<N>_Waypoint_01`, `_02`, ... sobre el camino, en orden desde el portal hasta la casa. En Roblox ponelos con `Transparency = 1`, `CanCollide = false` y `Anchored = true`, y usalos para que los enemigos caminen de uno a otro.
+
+Archivos:
+- `mapa_completo.glb`: todo el mapa en un archivo, con color.
+- `Centro.glb` e `Isla1_Tropical.glb` ... `Isla6_Cristal.glb`: cada parte por separado, por si preferís importarlas de a una (más liviano).
+- `mapa.blend`: para editar en Blender.
+
+Todas las piezas tienen menos de 20.000 triángulos. Después de importar, marcá todo como `Anchored`.

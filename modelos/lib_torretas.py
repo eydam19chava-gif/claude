@@ -170,7 +170,7 @@ def _mat_rgb(mat):
     return [min(1.0, max(0.0, c)) ** (1 / 2.2) for c in col[:3]]
 
 
-def _bake_palette(objs, png_path, cells=8, cell_px=8):
+def _bake_palette(objs, png_path, cells=None, cell_px=8):
     """Pinta todos los materiales en una textura de paleta y deja un solo material con esa imagen.
 
     Así el color viaja dentro de la textura (y dentro del .glb), que es lo que Roblox respeta.
@@ -180,7 +180,7 @@ def _bake_palette(objs, png_path, cells=8, cell_px=8):
         for m in o.data.materials:
             if m not in mats:
                 mats.append(m)
-    assert len(mats) <= cells * cells, "demasiados materiales para la paleta"
+    cells = cells or max(8, math.ceil(math.sqrt(len(mats))))
     size = cells * cell_px
     img = bpy.data.images.new("Paleta", size, size, alpha=False)
     px = [0.0] * (size * size * 4)
