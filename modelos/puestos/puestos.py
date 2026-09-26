@@ -10,7 +10,13 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import lib_torretas as L  # noqa: E402
-from lib_torretas import Vector, box, cone, cyl, join, material, math, rod, sphere, strut, torus  # noqa: E402
+import bpy  # noqa: E402
+from lib_torretas import Vector, box, cone, cyl, join, math, rod, sphere, strut, torus  # noqa: E402
+
+
+def material(name, *args, **kw):
+    """Reusa el material si ya existe (así el mapa no duplica materiales por isla)."""
+    return bpy.data.materials.get(name) or L.material(name, *args, **kw)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -282,8 +288,14 @@ BUILDERS = {
     "puesto_mejoras": build_mejoras,
 }
 
-names = [a for a in sys.argv[1:] if a in BUILDERS] or list(BUILDERS)
-for nm in names:
+
+def main():
+    names = [a for a in sys.argv[1:] if a in BUILDERS] or list(BUILDERS)
+    for nm in names:
+        _build(nm)
+
+
+def _build(nm):
     L.reset()
     objs, view = BUILDERS[nm]()
     out = os.path.join(HERE, nm)
@@ -291,3 +303,7 @@ for nm in names:
     if not os.environ.get("NO_RENDER"):
         L.render(out, **view)
     print("LISTO", nm)
+
+
+if __name__ == "__main__":
+    main()

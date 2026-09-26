@@ -15,14 +15,18 @@ from mathutils import noise
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import lib_torretas as L  # noqa: E402
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "puestos"))
+import puestos as PU  # noqa: E402
 from lib_torretas import Matrix, Vector, box, cone, cyl, join, math, rod, sphere, strut, torus  # noqa: E402
 
 OUT = os.path.dirname(os.path.abspath(__file__))
 L.reset()
 
-R = 40.0         # radio de cada isla
+R = 52.0         # radio de cada isla
+PR = 40.0        # escala del camino (el recorrido no cambia aunque la isla sea más grande)
 TOP = 3.0        # altura de la meseta
-D = 100.0        # distancia del centro a cada isla
+D = 128.0        # distancia del centro a cada isla
 HUB_R = 27.0     # radio de la isla central
 PW = 2.2         # medio ancho del camino
 
@@ -96,7 +100,12 @@ PATHS = [
 ]
 LANDMARK_POS = [(0.3, -0.66), (0.3, 0.66), (0.05, 0.68), (0.47, 0.5)]
 VARIANT = [0, 0, 0, 0, 0, 0]   # todas iguales: ninguna isla tiene ventaja
-PADS = [("Tienda", (-0.33, 0.36)), ("Mejoras", (-0.33, -0.36))]
+# puestos en cada isla (iguales en todas): nombre, posición local, rotación (el modelo mira a -Y), radio libre
+PUESTOS = [("puesto_palanca", (-12.0, 20.5), 0.0, 13.5),
+           ("puesto_tienda", (-11.0, -17.0), math.pi, 5.5),
+           ("puesto_equipamientos", (-22.0, -17.0), math.pi, 5.5),
+           ("puesto_diario", (-12.0, -7.0), math.pi, 3.5),
+           ("puesto_mejoras", (-28.5, 12.5), math.pi / 2, 4.5)]
 
 
 # ------------------------------------------------------------------ utilidades
@@ -754,7 +763,7 @@ def islet(p, th, rng, rock_mat, accent):
 def island(idx, th):
     rng = random.Random(100 + idx)
     seed = idx * 10.0
-    pts = [Vector((x * R, y * R, 0)) for x, y in PATHS[VARIANT[idx]]]
+    pts = [Vector((x * PR, y * PR, 0)) for x, y in PATHS[VARIANT[idx]]]
     objs = []
     name = f"Isla{idx + 1}_{th['name']}"
     accent = M(f"{th['name']}_Acento", th["accent"], emission=th["accent"], strength=2)
@@ -788,14 +797,14 @@ def island(idx, th):
     L.transform([objs[-1]], Matrix.Scale(1.3, 4), hc + Vector((0, 0, TOP - 0.15)))
     pc = pts[0] + Vector((2.5, 0, 0))
     objs.append(join(portal(pc, rng, rock_mat), f"{name}_Portal", pc))
-    lm = Vector(LANDMARK_POS[VARIANT[idx]] + (0,)) * R
+    lm = Vector(LANDMARK_POS[VARIANT[idx]] + (0,)) * PR
     objs.append(join(landmark(th["landmark"], lm, th, rng, accent), f"{name}_Monumento", lm))
 
     # decoración esparcida en la meseta
     wa_ = 1.3
     taken = [(hc, 10.5), (pc, 8.0), (lm, 8.0),
              (Vector((math.cos(wa_), math.sin(wa_), 0)) * rim_at(wa_, seed) * 0.66, 5.0)]
-    taken += [(Vector((px * R, py * R, 0)), 6.5) for _, (px, py) in PADS]
+    taken += [(Vector((px, py, 0)), r) for _, (px, py), _, r in PUESTOS]
     trees, rocks, small = [], [], []
 
     def free(p, r):
@@ -848,22 +857,19 @@ def island(idx, th):
                 small += mushroom(p, rng, ground, accent)
             else:
                 rocks.append(rock(p + Vector((0, 0, ground + 0.1)), rng.uniform(0.3, 0.6), rock_mat, rng))
-    # espacios vacíos marcados para construir la Tienda y las Mejoras
-    for label, (px, py) in PADS:
-        c = Vector((px * R, py * R, 0))
-        pad = [box((8.0, 8.0, 0.3), c + Vector((0, 0, TOP - 0.05)), STONE, bevel=0.1),
-               box((7.2, 7.2, 0.05), c + Vector((0, 0, TOP + 0.12)), STONE_D, bevel=0)]
-        for sx in (-1, 1):
-            for sy in (-1, 1):
-                pad.append(cyl(0.25, 0.9, c + Vector((sx * 3.8, sy * 3.8, TOP + 0.4)), WOOD_D, verts=6, bevel=0))
-                pad.append(sphere(0.2, c + Vector((sx * 3.8, sy * 3.8, TOP + 0.9)), accent, subdiv=1))
-        pad += sign(c + Vector((4.6, 0, 0)), 0.0, M("Cartel_Tienda", (0.2, 0.75, 0.3), 0.0, 0.6) if label == "Tienda"
-                    else M("Cartel_Mejoras", (0.2, 0.5, 1.0), 0.0, 0.6), TOP - 0.2)
-        objs.append(join(pad, f"{name}_Espacio_{label}", c + Vector((0, 0, TOP))))
+    # puestos: palanca con pedestales, tienda, equipamientos, diario y mejoras
+    for pname, (px, py), rotz, _ in PUESTOS:
+        pobjs, _view = PU.BUILDERS[pname]()
+        L.transform(pobjs, Matrix.Rotation(rotz, 4, "Z"), (0, 0, 0))
+        short = pname.replace("puesto_", "").capitalize()
+        for o in pobjs:
+            o.location += Vector((px, py, TOP - 0.2))
+            o.name = o.data.name = f"{name}_{short}_{o.name}"
+        objs += pobjs
 
     # props: cajas y barriles en el patio de la casa, carteles en la casa y el portal
     props = []
-    for s in (-1, 1):
+    for s in (1,):                                                            # del otro lado está el Diario
         base_p = hc + Vector((8.5, s * 5.5, 0))
         props += crate(base_p, rng, ground) + crate(base_p + Vector((1.1, 0.2 * s, 0)), rng, ground)
         props += crate(base_p + Vector((0.5, 0.1, 0)), rng, ground + 0.9)
@@ -895,7 +901,7 @@ def island(idx, th):
                          rot=(0, 0, wa), bevel=0))
     props += cloud(fall_top + wd * 2.0 + Vector((0, 0, -27)), rng)
     for k in range(2):                                                         # islotes
-        a = rng.choice([0.6, 2.0, -0.6, -2.0]) + rng.uniform(-0.25, 0.25) + (0.0 if k == 0 else math.pi / 3)
+        a = (0.45 + rng.uniform(-0.15, 0.15)) * (1 if k == 0 else -1)          # hacia afuera, lejos de las vecinas
         props += islet(Vector((math.cos(a), math.sin(a), 0)) * R * 1.45 + Vector((0, 0, rng.uniform(-4, 5))),
                        th, rng, rock_mat, accent)
     objs += join_chunks(props, f"{name}_Detalles")
@@ -941,34 +947,18 @@ def hub():
                      rot=(0, 0, a), bevel=0))
     P.append(torus(13.0, 0.15, Vector((0, 0, TOP + 0.1)), GOLD, seg=48, minor=4))
     g = Vector((0, 0, TOP + 0.08))
-    # ---- máquina de la palanca (gacha)
-    P.append(box((7.0, 5.0, 0.6), g + Vector((0, 0, 0.3)), STONE_D, bevel=0.1))
-    P.append(box((6.0, 4.0, 0.5), g + Vector((0, 0, 0.85)), GOLD, bevel=0.1))
-    body = g + Vector((0, 0, 4.0))
-    P.append(box((5.0, 3.2, 5.8), body, RED, bevel=0.35))
-    P.append(box((5.2, 3.4, 0.4), body + Vector((0, 0, 3.0)), GOLD, bevel=0.1))
-    P.append(cyl(1.6, 3.4, body + Vector((0, 0, 3.2)), RED, rot=(math.pi / 2, 0, 0), verts=16))  # techo redondo
-    P.append(torus(1.6, 0.12, body + Vector((0, 1.72, 3.2)), GOLD, rot=(math.pi / 2, 0, 0), seg=16, minor=4))
-    P.append(torus(1.6, 0.12, body + Vector((0, -1.72, 3.2)), GOLD, rot=(math.pi / 2, 0, 0), seg=16, minor=4))
-    P.append(sphere(0.7, body + Vector((0, 0, 5.0)), M("Estrella", (1, 0.9, 0.2), emission=(1, 0.8, 0.1), strength=5), subdiv=1))
-    for face in (-1, 1):                                                     # pantalla con 3 rodillos en ambos lados
-        fy = body.y + face * 1.62
-        P.append(box((4.0, 0.1, 2.0), Vector((body.x, fy, body.z + 0.9)), VOID, bevel=0))
-        for k, col in enumerate(((0.1, 0.8, 1.0), (1.0, 0.8, 0.1), (0.9, 0.2, 1.0))):
-            m = M(f"Rodillo_{k}", col, emission=col, strength=3)
-            P.append(box((1.1, 0.12, 1.6), Vector((body.x - 1.3 + k * 1.3, fy + face * 0.02, body.z + 0.9)), m, bevel=0.05))
-        P.append(box((4.3, 0.15, 0.2), Vector((body.x, fy, body.z + 2.0)), GOLD, bevel=0))
-        P.append(box((4.3, 0.15, 0.2), Vector((body.x, fy, body.z - 0.2)), GOLD, bevel=0))
-        P.append(box((2.2, 0.3, 0.6), Vector((body.x, fy, body.z - 1.5)), GOLD, bevel=0.1))      # bandeja
-        for k in range(8):                                                   # luces de feria
-            col = [(1, 0.2, 0.2), (1, 0.9, 0.1), (0.2, 1, 0.3), (0.2, 0.6, 1)][k % 4]
-            m = M(f"Luz_Feria_{k % 4}", col, emission=col, strength=5)
-            P.append(sphere(0.14, Vector((body.x - 2.2 + k * 0.63, fy, body.z + 2.4)), m, subdiv=1))
-    # palanca a un costado (+X)
-    lx = body + Vector((2.6, 0, 0.5))
-    P.append(cyl(0.6, 0.8, lx, GOLD, rot=(0, math.pi / 2, 0), verts=12))
-    P.append(strut(lx + Vector((0.4, 0, 0)), lx + Vector((0.9, 0, 3.2)), 0.3, 0.3, IRON, bevel=0.05))
-    P.append(sphere(0.6, lx + Vector((0.95, 0, 3.5)), RED, subdiv=2))
+    # fuente en el centro de la plaza
+    P.append(cyl(4.2, 0.9, g + Vector((0, 0, 0.45)), STONE, verts=16, bevel=0.1))
+    P.append(cyl(3.7, 0.1, g + Vector((0, 0, 0.85)), M("Agua_Fuente", (0.2, 0.6, 0.95), 0.0, 0.1), verts=16, bevel=0))
+    P.append(torus(4.2, 0.18, g + Vector((0, 0, 0.9)), STONE_D, seg=24, minor=4))
+    P.append(cyl(0.6, 2.6, g + Vector((0, 0, 1.6)), STONE, verts=8, bevel=0.05))
+    P.append(cyl(1.8, 0.5, g + Vector((0, 0, 2.9)), STONE, verts=12, bevel=0.08, r2=1.2))
+    P.append(cyl(1.5, 0.08, g + Vector((0, 0, 3.12)), M("Agua_Fuente", (0.2, 0.6, 0.95), 0.0, 0.1), verts=12, bevel=0))
+    P.append(sphere(0.45, g + Vector((0, 0, 3.6)), GOLD, subdiv=2))
+    for k in range(6):
+        a = k * math.pi / 3
+        P.append(cyl(0.12, 2.3, g + Vector((math.cos(a) * 1.9, math.sin(a) * 1.9, 1.9)),
+                     M("Chorro", (0.5, 0.8, 1.0), 0.0, 0.1), rot=(math.sin(a) * 0.35, -math.cos(a) * 0.35, 0), verts=5, bevel=0))
     # carteles hacia cada puente + faroles
     for i in range(6):
         a = math.radians(90 + 60 * i)
@@ -986,16 +976,6 @@ def hub():
         a = math.radians(90 + 60 * (k // 2) + (14 if k % 2 else -14))         # a los lados de cada puente
         p = Vector((math.cos(a), math.sin(a), 0)) * 23.5
         deco += palm(p, rng, TOP - 0.1) if k % 2 else round_tree(p, rng, TOP - 0.1)
-    for k in range(4):                                                       # racimos de globos
-        a = math.radians(45 + k * 90)
-        base_p = Vector((math.cos(a), math.sin(a), 0)) * 7.5 + Vector((0, 0, TOP + 0.1))
-        deco.append(box((0.5, 0.5, 0.3), base_p + Vector((0, 0, 0.15)), GOLD, bevel=0.05))
-        for j in range(5):
-            col = [(1, 0.2, 0.3), (1, 0.85, 0.1), (0.2, 0.8, 1), (0.6, 0.3, 1), (0.3, 1, 0.4)][j]
-            m = M(f"Globo_{j}", col, 0.1, 0.3)
-            top = base_p + Vector((crng_b.uniform(-1.2, 1.2), crng_b.uniform(-1.2, 1.2), 5.5 + crng_b.uniform(0, 1.5)))
-            deco.append(rod(base_p + Vector((0, 0, 0.3)), top - Vector((0, 0, 0.6)), 0.02, WHITE, verts=4))
-            deco.append(sphere(0.6, top, m, subdiv=2, scale=(1, 1, 1.2)))
     base = underside(lambda a: HUB_R + 1.5, "Centro_Base_Flotante", M("Centro_Roca", (0.55, 0.3, 0.22)),
                      M("Centro_Roca2", (0.45, 0.24, 0.17)), M("Centro_Roca", (0.55, 0.3, 0.22)), z0=-3.4, depth=0.9,
                      seed=77.0)
@@ -1144,12 +1124,14 @@ def shot(name, loc, target, lens=35):
 
 
 isla1 = Vector((0, D, 0))
-shot("vista_mapa_completo", (0, -265, 150), (0, 5, -8), lens=30)
-shot("vista_flotante", (-75, -165, -8), (0, -100, -6), lens=35)
-shot("vista_isla_tropical", isla1 + Vector((55, -60, 55)), isla1 + Vector((0, 0, 3)), lens=32)
+shot("vista_mapa_completo", (0, -335, 190), (0, 5, -8), lens=30)
+shot("vista_flotante", (-90, -(D + 75), -8), (0, -D, -6), lens=35)
+shot("vista_isla_tropical", isla1 + Vector((68, -72, 66)), isla1 + Vector((0, 0, 3)), lens=32)
 # isla 1 rota 90°: local (x, y) -> mundo (-y, x) + (0, D)
-shot("vista_casa", isla1 + Vector((16, -8, 15)), isla1 + Vector((0, -0.44 * R - 5.5, 4)), lens=35)
-shot("vista_tienda_mejoras", isla1 + Vector((0, 10, 20)), isla1 + Vector((0, -18, 3)), lens=30)
-shot("vista_portal", isla1 + Vector((6, 13, 12)), isla1 + Vector((0, 0.66 * R + 2.5, 4)), lens=40)
+shot("vista_casa", isla1 + Vector((16, -8, 15)), isla1 + Vector((0, -0.44 * PR - 5.5, 4)), lens=35)
+# isla 1 (rotada 90°): local (x, y) -> mundo (-y, x + D)
+shot("vista_puestos", isla1 + Vector((8, 8, 24)), isla1 + Vector((-3, -16, 2)), lens=28)
+shot("vista_palanca", isla1 + Vector((-8, -2, 9)), isla1 + Vector((-20.5, -12, 2)), lens=32)
+shot("vista_portal", isla1 + Vector((6, 13, 12)), isla1 + Vector((0, 0.66 * PR + 2.5, 4)), lens=40)
 shot("vista_centro", (38, -42, 28), (0, 0, 4), lens=35)
 print("LISTO")

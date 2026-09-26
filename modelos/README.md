@@ -90,11 +90,11 @@ Cada isla tiene:
 - **Portal-cueva** donde aparecen los enemigos (lado de afuera).
 - **Camino en zigzag** con bordillos y faroles, con lugar libre a los costados para poner torretas.
 - **Casa base** con el **cristal de vida** flotando arriba (lo que atacan los enemigos), cerca y bandera del color del jugador.
-- **Espacio para la Tienda** (`Isla<N>_..._Espacio_Tienda`, cartel verde) y **espacio para las Mejoras** (`..._Espacio_Mejoras`, cartel azul): plataformas vacías de 8×8 al lado de la casa para que pongas ahí esos edificios o NPCs.
+- **Zona de base con los 5 puestos** (los mismos modelos de `puestos/`, en el mismo lugar en todas las islas): `..._Palanca_*` (consola, brazo y 5 pedestales), `..._Tienda_*`, `..._Equipamientos_*`, `..._Diario_*` y `..._Mejoras_*` (con `Panel_Suerte` y `Panel_Giros`).
 - **Waypoints**: cubitos `Isla<N>_Waypoint_01`, `_02`, ... sobre el camino, en orden desde el portal hasta la casa. En Roblox ponelos con `Transparency = 1`, `CanCollide = false` y `Anchored = true`, y usalos para que los enemigos caminen de uno a otro.
 - Roca colgante debajo, rocas flotando, 2 islotes y una cascada que cae al vacío.
 
-La isla central tiene la máquina de la palanca, globos, faroles y **6 carteles TOP** (Oleadas, Enemigos, Giros, Torretas, Monedas, Tiempo). Cada cartel tiene:
+La isla central tiene una fuente, faroles y **6 carteles TOP** (Oleadas, Enemigos, Giros, Torretas, Monedas, Tiempo). Cada cartel tiene:
 - una pantalla aparte (`Centro_Top_<Categoria>_Pantalla`) para ponerle un `SurfaceGui` con la tabla;
 - un **pedestal** adelante para la estatua del jugador #1 de esa categoría.
 
