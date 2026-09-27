@@ -108,11 +108,22 @@ def lamp_post(c, K, side=1):
 # ------------------------------------------------------------------ 1. palanca + 5 pedestales
 def build_palanca():
     K = mats()
-    base = [box((25, 12, 0.3), Vector((0, 0, 0.15)), K["STONE"], bevel=0.05)]
-    for i in range(12):                                                         # baldosas
-        for j in range(6):
-            if (i + j) % 2:
-                base.append(box((2.0, 1.9, 0.02), Vector((-11 + i * 2.0, -4.75 + j * 1.9, 0.31)), K["STONE_D"], bevel=0))
+    pave = material("Adoquin", (0.62, 0.62, 0.64), 0.0, 0.85)
+    pave2 = material("Adoquin_2", (0.54, 0.54, 0.56), 0.0, 0.85)
+    base = [box((25.6, 12.6, 0.8), Vector((0, 0, -0.1)), K["STONE_D"], bevel=0.08),      # borde (entra en el suelo)
+            box((24.6, 11.6, 0.1), Vector((0, 0, 0.27)), K["STONE_D"], bevel=0)]
+    for j in range(10):                                                         # adoquines trabados
+        off = 0.6 if j % 2 else 0.0
+        for i in range(21):
+            x = -12.0 + off + i * 1.2
+            if abs(x) > 11.9:
+                continue
+            base.append(box((1.1, 1.05, 0.12), Vector((x, -5.2 + j * 1.15, 0.34)), pave if (i * 7 + j * 3) % 5 else pave2,
+                            bevel=0))
+    for sy in (-1, 1):                                                          # luz azul en los bordes
+        base.append(box((25.0, 0.1, 0.1), Vector((0, sy * 6.25, 0.31)), K["BLUE_NEON"], bevel=0))
+    for sx in (-1, 1):
+        base.append(box((0.1, 12.4, 0.1), Vector((sx * 12.75, 0, 0.31)), K["BLUE_NEON"], bevel=0))
     for s in (-1, 1):                                                           # vitrinas rojas
         c = Vector((s * 11.0, 3.2, 0.3))
         for sx in (-1, 1):
@@ -139,16 +150,50 @@ def build_palanca():
             for sy in (-1, 1):
                 P.append(cyl(0.12, 0.08, c + Vector((sx * 1.25, sy * 1.25, 1.07)), K["METAL"], verts=6, bevel=0))
         objs.append(join(P, f"Pedestal_{k + 1}", c + Vector((0, 0, 1.05))))
-    cc = Vector((0, -3.3, 0.3))                                                 # consola "Rodar"
-    con = [box((2.6, 1.5, 1.4), cc + Vector((0, 0, 0.7)), K["DARK"], bevel=0.1),
-           box((2.2, 0.12, 0.7), cc + Vector((0, -0.3, 1.55)), K["GREEN_NEON"], rot=(-0.6, 0, 0), bevel=0),
-           box((2.7, 1.6, 0.12), cc + Vector((0, 0, 1.42)), K["METAL"], bevel=0.02),
-           box((1.8, 0.05, 0.3), cc + Vector((0, -0.77, 0.75)), material("Cartel_Rodar", (0.9, 0.9, 0.9), 0.0, 0.5), bevel=0),
-           cyl(0.3, 0.3, cc + Vector((1.45, 0, 1.0)), K["METAL"], rot=(0, math.pi / 2, 0), verts=12)]
+    cc = Vector((0, -3.4, 0.4))                                                 # máquina "Rodar"
+    red = material("Maquina_Roja", (0.8, 0.07, 0.08), 0.3, 0.35)
+    screen = material("Pantalla_Maquina", (0.03, 0.03, 0.06), 0.2, 0.3)
+    con = [box((3.6, 2.6, 0.35), cc + Vector((0, 0, 0.17)), K["DARK"], bevel=0.08),        # tarima
+           box((3.9, 2.9, 0.08), cc + Vector((0, 0, 0.36)), K["GOLD"], bevel=0.02),
+           box((3.0, 1.8, 2.6), cc + Vector((0, 0.1, 1.7)), red, bevel=0.18),              # gabinete
+           cyl(1.5, 1.8, cc + Vector((0, 0.1, 3.0)), red, rot=(math.pi / 2, 0, 0), verts=16, bevel=0.05)]
+    for s in (-1, 1):                                                           # arcos dorados
+        con.append(torus(1.5, 0.08, cc + Vector((0, 0.1 + s * 0.92, 3.0)), K["GOLD"], rot=(math.pi / 2, 0, 0), seg=16,
+                         minor=4))
+    con += [box((2.5, 0.12, 1.3), cc + Vector((0, -0.82, 2.2)), screen, bevel=0.04),       # pantalla
+            box((2.7, 0.14, 0.14), cc + Vector((0, -0.84, 2.9)), K["GOLD"], bevel=0),
+            box((2.7, 0.14, 0.14), cc + Vector((0, -0.84, 1.5)), K["GOLD"], bevel=0)]
+    reel = material("Rodillo", (1.0, 0.97, 0.9), 0.0, 0.4, emission=(1.0, 0.95, 0.85), strength=0.6)
+    seven = material("Siete", (0.9, 0.04, 0.04), 0.2, 0.3)
+    for k in range(3):                                                          # 3 rodillos mostrando 7 7 7
+        x = -0.8 + k * 0.8
+        con.append(cyl(0.45, 0.7, cc + Vector((x, -0.8, 2.2)), reel, rot=(0, math.pi / 2, 0), verts=12, bevel=0))
+        f = cc + Vector((x, -1.27, 2.2))
+        con.append(box((0.42, 0.06, 0.11), f + Vector((0, 0, 0.24)), seven, bevel=0))            # barra del 7
+        con.append(strut(f + Vector((0.17, 0, 0.2)), f + Vector((-0.07, 0, -0.3)), 0.06, 0.12, seven, bevel=0))
+        con.append(box((0.08, 0.06, 0.1), f + Vector((-0.17, 0, 0.17)), seven, bevel=0))         # remate
+    con.append(box((2.3, 0.05, 0.04), cc + Vector((0, -1.28, 2.2)), material("Linea_Premio", (1, 0.85, 0.1),
+                                                                              emission=(1, 0.8, 0.1), strength=3), bevel=0))
+    for k in range(9):                                                          # focos alrededor del techo
+        a = math.pi * k / 8
+        col = [(1, 0.25, 0.25), (1, 0.9, 0.2), (0.3, 1, 0.4), (0.3, 0.7, 1)][k % 4]
+        m = material(f"Foco_{k % 4}", col, emission=col, strength=4)
+        con.append(sphere(0.13, cc + Vector((math.cos(a) * 1.35, -0.85, 3.0 + math.sin(a) * 1.35)), m, subdiv=1))
+    con += [box((2.4, 0.12, 0.45), cc + Vector((0, -0.82, 1.05)), material("Cartel_Rodar", (0.95, 0.95, 0.95), 0.0, 0.5),
+                bevel=0.04),                                                    # cartel "RODAR"
+            cyl(0.28, 0.2, cc + Vector((0.95, -0.95, 1.05)), K["GREEN_NEON"], rot=(math.pi / 2, 0, 0), verts=12, bevel=0),
+            box((0.5, 0.1, 0.12), cc + Vector((-0.95, -0.85, 0.65)), K["BLACK"], bevel=0),   # ranura de monedas
+            box((1.6, 0.5, 0.25), cc + Vector((0, -1.05, 0.55)), K["GOLD"], bevel=0.06),     # bandeja
+            cone(0.55, 0.9, cc + Vector((0, 0.1, 4.85)), K["GOLD"], verts=5),                 # estrella arriba
+            sphere(0.3, cc + Vector((0, 0.1, 4.5)), material("Estrella", (1, 0.9, 0.2), emission=(1, 0.8, 0.1),
+                                                            strength=4), subdiv=1)]
+    con.append(cyl(0.45, 0.4, cc + Vector((1.7, 0.1, 2.0)), K["GOLD"], rot=(0, math.pi / 2, 0), verts=16))   # eje
+    con.append(cyl(0.25, 0.45, cc + Vector((1.85, 0.1, 2.0)), K["DARK"], rot=(0, math.pi / 2, 0), verts=12))
     objs.append(join(con, "Consola", cc))
-    piv = cc + Vector((1.62, 0, 1.0))                                           # brazo de la palanca (animable)
-    arm = [rod(piv, piv + Vector((0, 0, 1.3)), 0.08, K["METAL"], verts=8),
-           sphere(0.28, piv + Vector((0, 0, 1.4)), material("Bola_Roja", (0.9, 0.08, 0.08), 0.1, 0.3), subdiv=2)]
+    piv = cc + Vector((2.0, 0.1, 2.0))                                          # brazo de la palanca (animable)
+    arm = [rod(piv, piv + Vector((0.15, 0, 1.9)), 0.1, K["METAL"], verts=10),
+           cyl(0.14, 0.25, piv + Vector((0.12, 0, 1.4)), K["GOLD"], verts=10, bevel=0),
+           sphere(0.42, piv + Vector((0.17, 0, 2.15)), material("Bola_Roja", (0.9, 0.08, 0.08), 0.1, 0.3), subdiv=2)]
     objs.append(join(arm, "Palanca_Brazo", piv))
     return objs, dict(target=(0, 0.5, 1.5), dist=3.1)
 

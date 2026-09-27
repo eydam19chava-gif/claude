@@ -23,10 +23,10 @@ from lib_torretas import Matrix, Vector, box, cone, cyl, join, math, rod, sphere
 OUT = os.path.dirname(os.path.abspath(__file__))
 L.reset()
 
-R = 52.0         # radio de cada isla
-PR = 40.0        # escala del camino (el recorrido no cambia aunque la isla sea más grande)
+R = 70.0         # radio de cada isla
+PR = 52.0        # escala del camino
 TOP = 3.0        # altura de la meseta
-D = 128.0        # distancia del centro a cada isla
+D = 172.0        # distancia del centro a cada isla
 HUB_R = 27.0     # radio de la isla central
 PW = 2.2         # medio ancho del camino
 
@@ -101,11 +101,14 @@ PATHS = [
 LANDMARK_POS = [(0.3, -0.66), (0.3, 0.66), (0.05, 0.68), (0.47, 0.5)]
 VARIANT = [0, 0, 0, 0, 0, 0]   # todas iguales: ninguna isla tiene ventaja
 # puestos en cada isla (iguales en todas): nombre, posición local, rotación (el modelo mira a -Y), radio libre
-PUESTOS = [("puesto_palanca", (-12.0, 20.5), 0.0, 13.5),
-           ("puesto_tienda", (-11.0, -17.0), math.pi, 5.5),
-           ("puesto_equipamientos", (-22.0, -17.0), math.pi, 5.5),
-           ("puesto_diario", (-12.0, -7.0), math.pi, 3.5),
-           ("puesto_mejoras", (-28.5, 12.5), math.pi / 2, 4.5)]
+PUESTOS = [("puesto_palanca", (-22.0, 29.0), 0.0, 14.0),
+           ("puesto_tienda", (-17.0, -25.0), math.pi, 6.0),
+           ("puesto_equipamientos", (-33.0, -25.0), math.pi, 6.0),
+           ("puesto_diario", (-44.0, -10.0), math.pi / 2, 4.0),
+           ("puesto_mejoras", (-41.0, 15.0), math.pi / 2, 5.0)]
+# zonas aplanadas debajo de los puestos (medio ancho en x, medio ancho en y)
+FLAT = [(-22.0, 29.0, 13.5, 7.0), (-17.0, -25.0, 5.0, 3.8), (-33.0, -25.0, 5.5, 3.8), (-44.0, -10.0, 3.2, 3.2),
+        (-41.0, 15.0, 1.5, 4.5)]
 
 
 # ------------------------------------------------------------------ utilidades
@@ -233,7 +236,7 @@ def shore(seed, name):
 
 
 def terrain(th, pts, seed, name):
-    N = 80
+    N = 96
     half = 1.15 * R
     step = 2 * half / N
     verts, heights = [], {}
@@ -258,6 +261,13 @@ def terrain(th, pts, seed, name):
                 h = 0.15 - (d - 1.0) * 8
             else:
                 h = -1.2
+            for fx, fy, hx, hy in FLAT:
+                ex = max(0.0, abs(x - fx) - hx)
+                ey = max(0.0, abs(y - fy) - hy)
+                e = math.hypot(ex, ey)
+                if d < 0.8 and e < 2.0:
+                    k = e / 2.0
+                    h = (TOP - 0.2) * (1 - k) + h * k
             dp = dist_path(p, pts)
             if d < 0.8 and dp < PW + 1.2:
                 k = max(0.0, min(1.0, (dp - PW) / 1.2))
@@ -815,7 +825,7 @@ def island(idx, th):
     ground = TOP - 0.2
     tries = 0
     trees_n = 0
-    while trees_n < 26 and tries < 3000:
+    while trees_n < 40 and tries < 4000:
         tries += 1
         p = Vector((rng.uniform(-R, R), rng.uniform(-R, R), 0))
         if not free(p, 1.8):
@@ -837,7 +847,7 @@ def island(idx, th):
         trees_n += 1
     tries = 0
     count = 0
-    while count < 40 and tries < 3000:
+    while count < 60 and tries < 4000:
         tries += 1
         p = Vector((rng.uniform(-R, R), rng.uniform(-R, R), 0))
         if not free(p, 0.8):
@@ -1045,7 +1055,7 @@ crng = random.Random(42)
 nubes = []
 for k in range(26):
     a = crng.uniform(0, 2 * math.pi)
-    r = crng.uniform(40, 190)
+    r = crng.uniform(50, 280)
     z = crng.uniform(34, 46) if k % 2 else -crng.uniform(30, 45)            # nubes arriba y debajo de las islas
     nubes += cloud(Vector((math.cos(a) * r, math.sin(a) * r, z)), crng)
 groups["Nubes"] = join_chunks(nubes, "Nubes")
@@ -1124,14 +1134,14 @@ def shot(name, loc, target, lens=35):
 
 
 isla1 = Vector((0, D, 0))
-shot("vista_mapa_completo", (0, -335, 190), (0, 5, -8), lens=30)
-shot("vista_flotante", (-90, -(D + 75), -8), (0, -D, -6), lens=35)
-shot("vista_isla_tropical", isla1 + Vector((68, -72, 66)), isla1 + Vector((0, 0, 3)), lens=32)
+shot("vista_mapa_completo", (0, -455, 265), (0, 5, -10), lens=30)
+shot("vista_flotante", (-120, -(D + 100), -10), (0, -D, -8), lens=35)
+shot("vista_isla_tropical", isla1 + Vector((92, -96, 90)), isla1 + Vector((0, 0, 3)), lens=32)
 # isla 1 rota 90°: local (x, y) -> mundo (-y, x) + (0, D)
 shot("vista_casa", isla1 + Vector((16, -8, 15)), isla1 + Vector((0, -0.44 * PR - 5.5, 4)), lens=35)
 # isla 1 (rotada 90°): local (x, y) -> mundo (-y, x + D)
-shot("vista_puestos", isla1 + Vector((8, 8, 24)), isla1 + Vector((-3, -16, 2)), lens=28)
-shot("vista_palanca", isla1 + Vector((-8, -2, 9)), isla1 + Vector((-20.5, -12, 2)), lens=32)
+shot("vista_puestos", isla1 + Vector((12, 14, 42)), isla1 + Vector((0, -28, 1)), lens=26)
+shot("vista_palanca", isla1 + Vector((-16, -10, 11)), isla1 + Vector((-29, -22, 2)), lens=30)
 shot("vista_portal", isla1 + Vector((6, 13, 12)), isla1 + Vector((0, 0.66 * PR + 2.5, 4)), lens=40)
 shot("vista_centro", (38, -42, 28), (0, 0, 4), lens=35)
 print("LISTO")
