@@ -126,3 +126,25 @@ Modelos sueltos para poner donde quieras. Todos miran hacia **-Y** (el jugador s
 | `puesto_mejoras` | Mejoras de "Suerte de tirada" y "Giros" | `Marco`, `Iconos` (trébol y dado), `Panel_Suerte` y `Panel_Giros` (un `SurfaceGui` en cada uno) |
 
 El script `puestos/puestos.py` los genera. Para regenerar uno solo: `python puestos.py puesto_tienda`.
+
+# Enemigos (`enemigos/`)
+17 enemigos estilo bloque (tipo Roblox R6). Cada uno viene separado en partes con el pivote en la articulación, listo para animar con `Motor6D`:
+`Head` (cuello), `Torso`, `LeftArm` / `RightArm` (hombros), `LeftLeg` / `RightLeg` (caderas). Miran hacia **-Y**; los pies están en el piso.
+
+| Enemigo | Idea |
+|---------|------|
+| `zombi_basico` | El común |
+| `zombi_corredor` | Rápido, poca vida |
+| `zombi_tanque` | Lento, mucha vida |
+| `zombi_escudo` | Escudo antidisturbios: bloquea daño de frente |
+| `zombi_radiactivo` | Máscara de gas y barril tóxico |
+| `zombi_astral` | Aureola y estrellas |
+| `zombi_cosmico` | Polvo estelar, capa de nebulosa y anillo planetario |
+| `zombi_radiante` | Corona de rayos, cura a los cercanos |
+| `zombi_invocador` | Túnica, bastón y runas: invoca minions |
+| `zombi_espectral` | Fantasma volador sin piernas |
+| `zombi_armadura_bronce` / `hierro` / `oro` / `diamante` / `obsidiana` | Misma base con armadura completa por nivel (más armadura = más vida) |
+| `minijefe_bruto` | Mini-jefe con casco de cuernos y garrote |
+| `jefe_rey_zombi` | Jefe final con corona, capa y cetro |
+
+`enemigos/enemigos.py` los genera (`python enemigos.py zombi_basico` para uno solo).
