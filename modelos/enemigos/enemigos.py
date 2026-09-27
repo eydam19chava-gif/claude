@@ -40,7 +40,7 @@ def base_mats():
 
 # ------------------------------------------------------------------ cuerpo base
 def humanoid(skin, shirt, pants, eye, K, s=1.0, w=1.0, arms="forward", legs="stand", rng=None, torn=True,
-             no_legs=False, hunch=0.0):
+             no_legs=False, hunch=0.0, hand=None, hand_size=1.0, hair=None, arm_len=1.0):
     """Devuelve (partes por articulación, pivotes). s = escala general, w = ancho de brazos/piernas."""
     rng = rng or random.Random(1)
     P = {k: [] for k in ("Head", "Torso", "LeftArm", "RightArm", "LeftLeg", "RightLeg")}
@@ -73,6 +73,10 @@ def humanoid(skin, shirt, pants, eye, K, s=1.0, w=1.0, arms="forward", legs="sta
     for k in range(4):
         H.append(box((0.1 * s, 0.07 * s, 0.1 * s), hc + Vector(((-0.22 + k * 0.15) * s, -0.62 * s, -0.2 * s)), K["TEETH"], bevel=0))
     H.append(box((0.05 * s, 0.07 * s, 0.4 * s), hc + Vector((-0.5 * s, -0.6 * s, 0.0)), K["BLACK"], rot=(0, 0.5, 0), bevel=0))  # cicatriz
+    if hair:
+        for k in range(7):                                                      # mechones
+            H.append(box((0.3 * s, 0.3 * s, 0.25 * s), hc + Vector((rng.uniform(-0.45, 0.45) * s, rng.uniform(-0.4, 0.45) * s, 0.62 * s)),
+                         hair, rot=(rng.uniform(-0.3, 0.3), rng.uniform(-0.3, 0.3), rng.uniform(0, 1)), bevel=0.05 * s))
     # brazos
     for side, name in ((-1, "LeftArm"), (1, "RightArm")):
         sp = piv[name]
@@ -81,15 +85,16 @@ def humanoid(skin, shirt, pants, eye, K, s=1.0, w=1.0, arms="forward", legs="sta
         elif arms == "up":
             tip = sp + Vector((0.4 * side * s, -0.3 * s, 1.8 * s))
         else:
-            tip = sp + Vector((0.15 * side * s, 0, -1.9 * s))
+            tip = sp + Vector((0.15 * side * s, 0, -1.9 * s * arm_len))
         mid = sp.lerp(tip, 0.5)
         piv[name + "_mid"], piv[name + "_tip"] = mid, tip
         P[name].append(strut(sp, mid, 0.95 * w * s, 0.95 * w * s, shirt, bevel=0.06 * s))
         P[name].append(strut(mid, tip, 0.85 * w * s, 0.85 * w * s, skin, bevel=0.06 * s))
         d = (tip - sp).normalized()
-        for k in range(3):                                                      # garras
-            off = Vector(((-0.25 + k * 0.25) * s, 0, 0)) if arms != "down" else Vector(((-0.25 + k * 0.25) * s, -0.3 * s, 0))
-            P[name].append(cone(0.08 * s, 0.35 * s, tip + d * 0.5 * s + off, K["TEETH"], rot=d, verts=4))
+        piv[name + "_hand"] = tip                                               # sin manos: brazo liso estilo Roblox
+        for k in range(2):                                                      # manga rota
+            P[name].append(cone(0.14 * w * s, 0.3 * s, mid + d * 0.1 * s + Vector(((k - 0.5) * 0.4 * w * s, 0, 0)),
+                                shirt, rot=d, verts=3))
     # piernas
     if not no_legs:
         for side, name in ((-1, "LeftLeg"), (1, "RightLeg")):
@@ -116,7 +121,8 @@ def finish(P, piv, name_scale=1.0):
 def e_basico():
     K = base_mats()
     P, piv = humanoid(mat("Piel_Zombi", (0.35, 0.55, 0.25)), mat("Camisa_Azul", (0.2, 0.3, 0.55)),
-                      mat("Pantalon_Marron", (0.3, 0.2, 0.12)), mat("Ojo_Rojo", (1, 0.1, 0.05), emission=(1, 0.1, 0.05), strength=4), K)
+                      mat("Pantalon_Marron", (0.3, 0.2, 0.12)), mat("Ojo_Rojo", (1, 0.1, 0.05), emission=(1, 0.1, 0.05), strength=4), K,
+                      hair=mat("Pelo_Oscuro", (0.12, 0.08, 0.05)))
     return finish(P, piv), 1.0
 
 
@@ -344,6 +350,447 @@ def e_jefe():
     return finish(P, piv), s
 
 
+# ------------------------------------------------------------------ helpers de detalle
+def chain(P, part, a, b, s, m, n=None):
+    """Cadena de eslabones de a hasta b."""
+    a, b = Vector(a), Vector(b)
+    n = n or max(3, int((b - a).length / (0.28 * s)))
+    d = (b - a).normalized()
+    for k in range(n):
+        p = a.lerp(b, (k + 0.5) / n)
+        P[part].append(torus(0.13 * s, 0.045 * s, p, m, rot=d.to_track_quat("X", "Z").to_euler() if k % 2 else
+                             (d.to_track_quat("X", "Z") @ Matrix.Rotation(math.pi / 2, 3, "X").to_quaternion()).to_euler(),
+                             seg=8, minor=4))
+
+
+def binary(P, part, c, s, m, rng, n=6, spread=0.5, face_y=-0.52):
+    """Código binario brillando (unos y ceros) sobre una superficie."""
+    for k in range(n):
+        p = c + Vector((rng.uniform(-spread, spread) * s, face_y * s, rng.uniform(-spread, spread) * s))
+        if rng.random() < 0.5:
+            P[part].append(box((0.05 * s, 0.04 * s, 0.2 * s), p, m, bevel=0))
+        else:
+            P[part].append(torus(0.07 * s, 0.025 * s, p, m, rot=(math.pi / 2, 0, 0), seg=8, minor=4))
+
+
+def robot_arm(P, name, piv, s, K, glow):
+    """Reemplaza el brazo por uno robótico (segmentos, articulaciones, pinza)."""
+    sp, tip = piv[name], piv[name + "_tip"]
+    P[name] = []
+    mid = sp.lerp(tip, 0.5)
+    d = (tip - sp).normalized()
+    P[name] += [sphere(0.45 * s, sp, K["DARKM"], subdiv=2),
+                strut(sp, mid, 0.55 * s, 0.55 * s, K["METAL"], bevel=0.05 * s),
+                sphere(0.32 * s, mid, K["DARKM"], subdiv=2),
+                torus(0.3 * s, 0.05 * s, mid, glow, rot=d, seg=12, minor=4),
+                rod(mid, tip, 0.2 * s, K["METAL"], verts=10),
+                rod(sp.lerp(mid, 0.2) + Vector((0, 0, -0.25 * s)), mid.lerp(tip, 0.6) + Vector((0, 0, -0.2 * s)), 0.06 * s, K["DARKM"], verts=6)]
+    base = tip
+    P[name].append(box((0.55 * s, 0.55 * s, 0.35 * s), base, K["DARKM"], rot=d.to_track_quat("Z", "Y").to_euler(), bevel=0.05 * s))
+    for sd in (-1, 1):                                                          # pinza
+        side = Vector((0.2 * sd * s, 0, 0))
+        P[name].append(strut(base + side, base + side + d * 0.55 * s + Vector((0, 0, 0.1 * sd * s)), 0.12 * s, 0.25 * s, K["METAL"], bevel=0))
+
+
+def robot_leg(P, name, piv, s, K, glow):
+    hp, foot = piv[name], piv[name + "_foot"]
+    P[name] = []
+    knee = hp.lerp(foot, 0.5) + Vector((0, -0.25 * s, 0))
+    P[name] += [sphere(0.42 * s, hp, K["DARKM"], subdiv=2),
+                strut(hp, knee, 0.5 * s, 0.5 * s, K["METAL"], bevel=0.05 * s),
+                sphere(0.3 * s, knee, glow, subdiv=2),
+                rod(knee, foot + Vector((0, 0, 0.25 * s)), 0.18 * s, K["METAL"], verts=10),
+                rod(hp + Vector((0, 0.3 * s, -0.2 * s)), foot + Vector((0, 0.3 * s, 0.5 * s)), 0.07 * s, K["DARKM"], verts=6),
+                box((1.0 * s, 1.35 * s, 0.3 * s), foot + Vector((0, -0.15 * s, 0.05 * s)), K["DARKM"], bevel=0.05 * s)]
+
+
+# ------------------------------------------------------------------ enemigos nuevos
+def e_cyborg():
+    K = base_mats()
+    glow = mat("Luz_Cyborg", (1, 0.15, 0.1), emission=(1, 0.1, 0.05), strength=6)
+    P, piv = humanoid(mat("Piel_Zombi", (0.35, 0.55, 0.25)), mat("Remera_Gris", (0.35, 0.35, 0.38)),
+                      mat("Pantalon_Marron", (0.3, 0.2, 0.12)), mat("Ojo_Rojo", (1, 0.1, 0.05), emission=(1, 0.1, 0.05), strength=4), K,
+                      hair=mat("Pelo_Oscuro", (0.12, 0.08, 0.05)))
+    robot_arm(P, "LeftArm", piv, 1.0, K, glow)
+    robot_leg(P, "RightLeg", piv, 1.0, K, glow)
+    hc = piv["Head"] + Vector((0, 0, 0.62))
+    P["Head"] += [box((0.66, 1.25, 1.25), hc + Vector((-0.33, 0, 0.02)), K["METAL"], bevel=0.1),            # media cara de metal
+                  cyl(0.18, 0.12, hc + Vector((-0.3, -0.64, 0.12)), glow, rot=(math.pi / 2, 0, 0), verts=12, bevel=0),
+                  torus(0.2, 0.04, hc + Vector((-0.3, -0.66, 0.12)), K["DARKM"], rot=(math.pi / 2, 0, 0), seg=12, minor=4),
+                  rod(hc + Vector((-0.45, 0.2, 0.6)), hc + Vector((-0.6, 0.3, 1.3)), 0.03, K["DARKM"], verts=6),
+                  sphere(0.07, hc + Vector((-0.6, 0.3, 1.33)), glow, subdiv=1)]
+    tc = piv["Torso"]
+    P["Torso"] += [box((0.9, 0.08, 0.9), tc + Vector((-0.4, -0.52, 0.25)), K["METAL"], bevel=0.05),         # placa del pecho
+                   cyl(0.22, 0.1, tc + Vector((-0.4, -0.58, 0.25)), glow, rot=(math.pi / 2, 0, 0), verts=12, bevel=0)]
+    for k in range(3):                                                          # cables sueltos
+        P["Torso"].append(rod(tc + Vector((-0.8, -0.4, 0.6 - k * 0.2)), tc + Vector((-1.3, -0.5, 0.3 - k * 0.3)), 0.03,
+                              [K["BLACK"], glow, mat("Cable_Azul", (0.1, 0.3, 0.9))][k], verts=5))
+    return finish(P, piv), 1.0
+
+
+def e_mecanico():
+    K = base_mats()
+    glow = mat("Luz_Mecanica", (0.2, 0.9, 1), emission=(0.1, 0.8, 1), strength=6)
+    P, piv = humanoid(mat("Piel_Mecanico", (0.4, 0.5, 0.3)), mat("Mono_Naranja", (0.85, 0.4, 0.1)),
+                      mat("Mono_Naranja", (0.85, 0.4, 0.1)), glow, K, legs="stand", arms="forward")
+    robot_leg(P, "LeftLeg", piv, 1.0, K, glow)
+    robot_leg(P, "RightLeg", piv, 1.0, K, glow)
+    tip = piv["RightArm_tip"]                                                   # taladro en la mano
+    d = (tip - piv["RightArm"]).normalized()
+    P["RightArm"] = [x for x in P["RightArm"]]
+    P["RightArm"] += [cyl(0.4, 0.4, tip + d * 0.3, K["DARKM"], rot=d, verts=12),
+                      cone(0.35, 1.2, tip + d * 1.1, K["METAL"], rot=d, verts=8)]
+    for k in range(3):
+        P["RightArm"].append(torus(0.28 - k * 0.07, 0.04, tip + d * (0.75 + k * 0.3), K["GOLD"], rot=d, seg=10, minor=4))
+    hc = piv["Head"] + Vector((0, 0, 0.62))
+    P["Head"] += [box((1.35, 1.3, 0.55), hc + Vector((0, 0, 0.45)), K["METAL"], bevel=0.1),                # tapa de cráneo robótica
+                  box((1.37, 0.1, 0.12), hc + Vector((0, -0.65, 0.3)), glow, bevel=0)]
+    for sx in (-1, 1):
+        P["Head"].append(box((0.15, 0.4, 0.4), hc + Vector((sx * 0.7, 0, 0.1)), K["DARKM"], bevel=0.03))
+    return finish(P, piv), 1.0
+
+
+def e_boxeador():
+    K = base_mats()
+    green = mat("Piel_Verde_Oscura", (0.15, 0.5, 0.2))
+    black = mat("Ropa_Negra", (0.05, 0.05, 0.06))
+    P, piv = humanoid(green, black, black, mat("Ojo_Blanco_Zombi", (0.95, 0.95, 0.8), emission=(1, 1, 0.8), strength=2), K,
+                      arms="down", torn=False, hand=green, hand_size=1.35)
+    for nm in ("LeftArm", "RightArm"):                                          # brazaletes con placas y cadenas
+        m, t = piv[nm + "_mid"], piv[nm + "_tip"]
+        P[nm].append(strut(m.lerp(t, 0.1), t, 1.08, 1.08, black, bevel=0.06))
+        for k in range(3):
+            P[nm].append(box((1.1, 1.1, 0.08), m.lerp(t, 0.25 + k * 0.3), K["DARKM"], bevel=0))
+        chain(P, nm, t + Vector((0, -0.56, 0.3)), t + Vector((0, -0.56, -0.4)), 1.0, K["METAL"])
+    return finish(P, piv), 1.0
+
+
+def e_blindado():
+    K = base_mats()
+    rng = random.Random(4)
+    tan = mat("Piel_Arena", (0.78, 0.7, 0.5))
+    olive = mat("Torso_Oliva", (0.35, 0.33, 0.15))
+    plate = mat("Chapa_Diamante", (0.62, 0.62, 0.65), 0.9, 0.3)
+    redb = mat("Banda_Roja", (0.8, 0.1, 0.08))
+    P, piv = humanoid(tan, olive, olive, mat("Ojo_Rojo", (1, 0.1, 0.05), emission=(1, 0.1, 0.05), strength=4), K,
+                      arms="forward", torn=False, hand=tan)
+    tc = piv["Torso"]
+    for k in range(3):                                                          # zarpazos rojos
+        P["Torso"].append(box((0.08, 0.05, 1.2), tc + Vector((0.1 + k * 0.22, -0.52, 0.1)), redb, rot=(0, 0.6, 0), bevel=0))
+    for nm in ("LeftArm", "RightArm", "LeftLeg", "RightLeg"):                    # bandas de chapa antideslizante
+        a = piv[nm + "_mid"]
+        b = piv.get(nm + "_tip") or piv.get(nm + "_foot")
+        for t, m in ((0.15, plate), (0.45, redb), (0.7, plate)):
+            P[nm].append(strut(a.lerp(b, t), a.lerp(b, t + 0.14), 1.05, 1.05, m, bevel=0.03))
+        for k in range(6):
+            p = a.lerp(b, 0.22) + Vector((rng.uniform(-0.35, 0.35), -0.53, rng.uniform(-0.1, 0.1)))
+            P[nm].append(box((0.12, 0.03, 0.05), p, K["DARKM"], rot=(0, rng.choice([0.8, -0.8]), 0), bevel=0))
+    return finish(P, piv), 1.0
+
+
+def e_sigiloso():
+    K = base_mats()
+    cloak = mat("Capa_Sigilo", (0.08, 0.1, 0.12))
+    P, piv = humanoid(mat("Piel_Gris", (0.35, 0.4, 0.35)), cloak, mat("Ropa_Negra", (0.05, 0.05, 0.06)),
+                      mat("Ojo_Verde", (0.3, 1, 0.3), emission=(0.2, 1, 0.3), strength=6), K, torn=False, hunch=0.3)
+    hc = piv["Head"] + Vector((0, 0, 0.62))
+    P["Head"] += [box((1.5, 1.45, 1.4), hc + Vector((0, 0.12, 0.1)), cloak, bevel=0.3),                     # capucha
+                  box((1.2, 0.1, 0.55), hc + Vector((0, -0.64, -0.25)), K["BLACK"], bevel=0.03)]            # máscara
+    P["Torso"].append(strut(piv["Torso"] + Vector((0, 0.55, 0.9)), Vector((0, 1.3, 0.3)), 2.3, 0.08, cloak, bevel=0))
+    for sx in (-1, 1):                                                          # dagas
+        P["Torso"].append(box((0.12, 0.08, 0.7), piv["Torso"] + Vector((sx * 0.7, 0.55, -0.6)), K["METAL"], rot=(0, sx * 0.5, 0), bevel=0))
+    return finish(P, piv), 1.0
+
+
+def e_alado():
+    K = base_mats()
+    wing = mat("Ala_Murcielago", (0.18, 0.08, 0.1))
+    P, piv = humanoid(mat("Piel_Alado", (0.45, 0.4, 0.5)), mat("Chaleco_Rasgado", (0.25, 0.1, 0.12)),
+                      mat("Pantalon_Oscuro", (0.15, 0.12, 0.12)), mat("Ojo_Amarillo", (1, 0.9, 0.1), emission=(1, 0.85, 0.1), strength=5), K,
+                      arms="up", legs="stand")
+    base = piv["Torso"] + Vector((0, 0.55, 0.6))
+    for sx in (-1, 1):                                                          # alas de murciélago
+        tip = base + Vector((sx * 3.2, 0.8, 1.2))
+        P["Torso"].append(strut(base, tip, 0.12, 0.12, K["BLACK"], bevel=0))
+        for k in range(4):
+            f = base + Vector((sx * (1.0 + k * 0.7), 0.6, 1.0 - k * 0.3))
+            end = f + Vector((sx * 0.3, 0.1, -1.8 + k * 0.2))
+            P["Torso"].append(strut(tip.lerp(base, k / 4), end, 0.06, 0.06, K["BLACK"], bevel=0))
+            P["Torso"].append(strut(base.lerp(tip, 0.25 + k * 0.2) + Vector((0, 0.05, -0.4)), end + Vector((0, 0, 0.4)),
+                                    0.05, 0.9, wing, bevel=0))
+    return finish(P, piv), 1.0
+
+
+def e_lich():
+    K = base_mats()
+    s = 1.35
+    robe = mat("Tunica_Lich", (0.16, 0.16, 0.18))
+    bone = mat("Calavera", (0.88, 0.86, 0.8))
+    socket = mat("Cuenca", (0.02, 0.02, 0.03))
+    P, piv = humanoid(mat("Piel_Lich", (0.55, 0.6, 0.55)), robe, robe, socket, K, s=s, torn=False, arms="down", hunch=0.45,
+                      hand=mat("Piel_Lich", (0.55, 0.6, 0.55)))
+    hc = piv["Head"] + Vector((0, 0, 0.62 * s))
+    P["Head"] = [box((1.2 * s, 1.15 * s, 1.1 * s), hc + Vector((0, 0, 0.1 * s)), bone, bevel=0.2 * s),     # calavera
+                 box((0.9 * s, 0.9 * s, 0.45 * s), hc + Vector((0, -0.1 * s, -0.5 * s)), bone, bevel=0.1 * s)]
+    for sx in (-1, 1):
+        P["Head"].append(box((0.34 * s, 0.1 * s, 0.34 * s), hc + Vector((sx * 0.28 * s, -0.56 * s, 0.1 * s)), socket, bevel=0.05 * s))
+        P["Head"].append(sphere(0.07 * s, hc + Vector((sx * 0.28 * s, -0.6 * s, 0.1 * s)),
+                                mat("Brillo_Lich", (0.3, 1, 0.8), emission=(0.2, 1, 0.8), strength=6), subdiv=1))
+        P["Head"].append(cone(0.14 * s, 0.6 * s, hc + Vector((sx * 0.5 * s, 0.1 * s, 0.75 * s)), bone, rot=Vector((sx * 0.5, 0.2, 1)), verts=6))
+    P["Head"].append(box((0.14 * s, 0.1 * s, 0.2 * s), hc + Vector((0, -0.56 * s, -0.15 * s)), socket, bevel=0))
+    for k in range(5):
+        P["Head"].append(box((0.1 * s, 0.1 * s, 0.14 * s), hc + Vector(((-0.3 + k * 0.15) * s, -0.56 * s, -0.5 * s)), K["TEETH"], bevel=0))
+    tc = piv["Torso"]
+    P["Torso"].append(cyl(1.3 * s, 2.2 * s, Vector((0, 0.1 * s, 1.1 * s)), robe, verts=9, bevel=0.05, r2=1.0 * s))   # túnica
+    for k in range(9):                                                          # borde deshilachado
+        a = k * 2 * math.pi / 9
+        P["Torso"].append(cone(0.25 * s, 0.4 * s, Vector((math.cos(a) * 1.2 * s, math.sin(a) * 1.2 * s + 0.1 * s, 0.1 * s)), robe,
+                               rot=(math.pi, 0, 0), verts=3))
+    P["Torso"].append(strut(tc + Vector((-1.0 * s, -0.55 * s, 0.9 * s)), tc + Vector((1.0 * s, -0.55 * s, -0.7 * s)), 0.25 * s, 0.08 * s,
+                            mat("Correa", (0.12, 0.08, 0.05)), bevel=0))
+    hand = piv["RightArm_hand"]                                                 # bastón con cráneo
+    P["RightArm"] += [rod(hand + Vector((0, -0.2 * s, -1.8 * s)), hand + Vector((0, -0.2 * s, 2.6 * s)), 0.08 * s, K["BLACK"], verts=8),
+                      box((0.55 * s, 0.5 * s, 0.5 * s), hand + Vector((0, -0.2 * s, 2.95 * s)), bone, bevel=0.1 * s)]
+    for sx in (-1, 1):
+        P["RightArm"].append(cone(0.08 * s, 0.4 * s, hand + Vector((sx * 0.25 * s, -0.2 * s, 3.3 * s)), K["BLACK"], rot=Vector((sx, 0, 1)), verts=5))
+        P["RightArm"].append(box((0.12 * s, 0.06 * s, 0.12 * s), hand + Vector((sx * 0.12 * s, -0.46 * s, 3.0 * s)), socket, bevel=0))
+    return finish(P, piv), s
+
+
+def e_1x1x1x1():
+    K = base_mats()
+    s = 3.0
+    rng = random.Random(11)
+    glowg = mat("Verde_1x1", (0.15, 0.95, 0.35), emission=(0.1, 0.9, 0.3), strength=1.8)
+    darkg = mat("Verde_Oscuro_1x1", (0.05, 0.35, 0.12))
+    fire = mat("Fuego_Verde", (0.2, 1.0, 0.3), emission=(0.1, 1.0, 0.25), strength=6)
+    red = mat("Ojo_Rojo_1x1", (1, 0.05, 0.05), emission=(1, 0.05, 0.05), strength=8)
+    cape = mat("Capa_Roja", (0.7, 0.03, 0.05))
+    P, piv = humanoid(glowg, glowg, darkg, K["BLACK"], K, s=s, torn=False, arms="down")
+    hc = piv["Head"] + Vector((0, 0, 0.62 * s))
+    P["Head"].append(box((0.3 * s, 0.08 * s, 0.26 * s), hc + Vector((0.3 * s, -0.62 * s, 0.12 * s)), red, bevel=0))      # ojo rojo
+    P["Head"].append(cyl(0.72 * s, 0.4 * s, hc + Vector((0, 0, 0.78 * s)), darkg, verts=4, bevel=0.05 * s))           # corona de dominó
+    for k in range(4):
+        a = k * math.pi / 2 + math.pi / 4
+        P["Head"].append(cone(0.18 * s, 0.45 * s, hc + Vector((math.cos(a) * 0.5 * s, math.sin(a) * 0.5 * s, 1.18 * s)), glowg, verts=4))
+    for rz in (0.7, -0.7):                                                      # X en el frente
+        P["Head"].append(box((0.08 * s, 0.05 * s, 0.35 * s), hc + Vector((0, -0.52 * s, 0.8 * s)), fire, rot=(0, rz, 0), bevel=0))
+    tc = piv["Torso"]
+    for k in range(4):                                                          # costillas negras
+        P["Torso"].append(box((1.3 * s, 0.05 * s, 0.1 * s), tc + Vector((0, -0.52 * s, (0.5 - k * 0.3) * s)), K["BLACK"], bevel=0))
+    P["Torso"].append(box((0.14 * s, 0.05 * s, 1.3 * s), tc + Vector((0, -0.53 * s, 0.05 * s)), K["BLACK"], bevel=0))
+    for k in range(6):                                                          # marca de corona en el cuello
+        a = k * math.pi / 3
+        P["Torso"].append(cone(0.08 * s, 0.3 * s, tc + Vector((math.cos(a) * 0.45 * s, math.sin(a) * 0.35 * s, 1.1 * s)), fire, verts=4))
+    cape_top = tc + Vector((0, 0.55 * s, 0.9 * s))
+    P["Torso"].append(strut(cape_top, cape_top + Vector((0, 1.1 * s, -3.7 * s)), 3.0 * s, 0.1 * s, cape, bevel=0))
+    sp = piv["LeftArm"] + Vector((-0.2 * s, 0, 0.3 * s))                       # hombrera dominó
+    P["LeftArm"].append(box((1.2 * s, 1.1 * s, 0.4 * s), sp, K["BLACK"], rot=(0, -0.3, 0), bevel=0.05 * s))
+    for dx, dy in ((-0.3, -0.25), (0, 0), (0.3, 0.25), (-0.3, 0.25), (0.3, -0.25)):
+        P["LeftArm"].append(sphere(0.07 * s, sp + Vector((dx * s, dy * s, 0.22 * s)), K["WHITE"], subdiv=1))
+    for nm in ("LeftArm", "RightArm"):                                           # muñequeras de cadena + espadas de fuego
+        chain(P, nm, piv[nm + "_tip"] + Vector((-0.55 * s, -0.55 * s, 0.2 * s)), piv[nm + "_tip"] + Vector((0.55 * s, -0.55 * s, 0.2 * s)), s, glowg, n=5)
+        h = piv[nm + "_hand"]
+        P[nm] += [box((0.2 * s, 0.2 * s, 0.6 * s), h, K["BLACK"], bevel=0.02 * s),
+                  box((0.7 * s, 0.25 * s, 0.12 * s), h + Vector((0, -0.2 * s, 0.1 * s)), darkg, bevel=0),
+                  box((0.25 * s, 0.1 * s, 3.2 * s), h + Vector((0, -0.6 * s, 1.1 * s)), fire, rot=(-1.2, 0, 0), bevel=0.02 * s)]
+        for k in range(4):
+            P[nm].append(cone(0.2 * s, 0.6 * s, h + Vector((rng.uniform(-0.15, 0.15) * s, (-1.0 - k * 0.55) * s, (0.5 + k * 0.2) * s)),
+                              fire, rot=(-0.3, 0, 0), verts=5))
+    for k in range(8):                                                          # llamas oscuras en los pies
+        a = k * math.pi / 4
+        P["Torso"].append(cone(0.25 * s, rng.uniform(0.5, 1.0) * s, Vector((math.cos(a) * 1.1 * s, math.sin(a) * 0.7 * s, 0.3 * s)), darkg, verts=5))
+    return finish(P, piv), s
+
+
+def e_john_doe():
+    K = base_mats()
+    s = 3.0
+    rng = random.Random(21)
+    pale = mat("Piel_Palida_JD", (0.95, 0.85, 0.75))
+    yellow = mat("Torso_Amarillo", (0.98, 0.8, 0.1))
+    blue = mat("Pantalon_Celeste", (0.35, 0.6, 0.9))
+    corrupt = mat("Corrupcion", (0.02, 0.02, 0.03), 0.3, 0.3)
+    code = mat("Codigo_Rojo", (1, 0.05, 0.05), emission=(1, 0.05, 0.05), strength=7)
+    P, piv = humanoid(pale, yellow, blue, K["BLACK"], K, s=s, torn=False, arms="down")
+    hc = piv["Head"] + Vector((0, 0, 0.62 * s))
+    P["Head"].append(box((0.18 * s, 0.08 * s, 0.16 * s), hc + Vector((0.3 * s, -0.63 * s, 0.12 * s)), code, bevel=0))       # ojo derecho rojo
+    P["Head"].append(box((0.55 * s, 0.07 * s, 0.6 * s), hc + Vector((0.35 * s, -0.61 * s, 0.1 * s)), corrupt, bevel=0))
+    tc = piv["Torso"]
+    R = tc + Vector((-0.55 * s, -0.53 * s, 0.45 * s))                           # la "R"
+    P["Torso"] += [box((0.08 * s, 0.05 * s, 0.6 * s), R, K["BLACK"], bevel=0),
+                   box((0.28 * s, 0.05 * s, 0.07 * s), R + Vector((0.14 * s, 0, 0.27 * s)), K["BLACK"], bevel=0),
+                   box((0.28 * s, 0.05 * s, 0.07 * s), R + Vector((0.14 * s, 0, 0.02 * s)), K["BLACK"], bevel=0),
+                   box((0.07 * s, 0.05 * s, 0.25 * s), R + Vector((0.28 * s, 0, 0.15 * s)), K["BLACK"], bevel=0),
+                   box((0.07 * s, 0.05 * s, 0.33 * s), R + Vector((0.2 * s, 0, -0.14 * s)), K["BLACK"], rot=(0, 0.6, 0), bevel=0)]
+    binary(P, "Torso", tc + Vector((0.4 * s, 0, -0.2 * s)), s, code, rng, n=8, spread=0.45)
+    # brazo derecho: todo corrupción con forma de púa enorme
+    sp = piv["RightArm"]
+    P["RightArm"] = [sphere(0.6 * s, sp, corrupt, subdiv=1),
+                     cone(0.65 * s, 4.2 * s, sp + Vector((0.2 * s, -0.4 * s, -1.9 * s)), corrupt, rot=Vector((0.1, -0.2, -1)), verts=6)]
+    for k in range(5):
+        P["RightArm"].append(cone(0.2 * s, 1.0 * s, sp + Vector((rng.uniform(0, 0.5) * s, -0.4 * s, -k * 0.7 * s)), corrupt,
+                                  rot=Vector((1, -0.3, 0.2)), verts=5))
+    binary(P, "RightArm", sp + Vector((0.1 * s, 0, -1.2 * s)), s, code, rng, n=8, spread=0.4, face_y=-0.75)
+    # mano izquierda con garras negras
+    h = piv["LeftArm_hand"]
+    P["LeftArm"].append(box((0.95 * s, 0.95 * s, 0.9 * s), h, corrupt, bevel=0.05 * s))
+    for k in range(3):
+        P["LeftArm"].append(cone(0.1 * s, 0.7 * s, h + Vector(((-0.3 + k * 0.3) * s, -0.3 * s, -0.7 * s)), corrupt,
+                                 rot=Vector((0, -0.4, -1)), verts=4))
+    binary(P, "LeftArm", h, s, code, rng, n=4, spread=0.3, face_y=-0.5)
+    for nm in ("LeftLeg", "RightLeg"):                                           # pies negros
+        P[nm].append(box((1.1 * s, 1.35 * s, 0.7 * s), piv[nm + "_foot"] + Vector((0, -0.1 * s, 0.25 * s)), corrupt, bevel=0.08 * s))
+        binary(P, nm, piv[nm + "_foot"] + Vector((0, 0, 0.3 * s)), s, code, rng, n=3, spread=0.3, face_y=-0.8)
+    return finish(P, piv), s
+
+
+def e_brute():
+    K = base_mats()
+    s = 2.4
+    rng = random.Random(31)
+    green = mat("Piel_Brute", (0.2, 0.55, 0.2))
+    vest = mat("Chaleco_Negro", (0.04, 0.04, 0.05))
+    pants = mat("Pantalon_Violeta", (0.1, 0.08, 0.28))
+    red = mat("Ojo_Rojo_Brute", (1, 0.05, 0.05), emission=(1, 0.05, 0.05), strength=8)
+    steel = mat("Acero_Cadena", (0.7, 0.72, 0.75), 0.9, 0.3)
+    P, piv = humanoid(green, green, pants, red, K, s=s, w=1.9, arms="down", arm_len=1.25, torn=False, hand=green, hand_size=1.05)
+    hc = piv["Head"] + Vector((0, 0, 0.62 * s))
+    for rz in (0.7, -0.7):                                                      # cicatriz en X roja
+        P["Head"].append(box((0.07 * s, 0.07 * s, 0.5 * s), hc + Vector((-0.3 * s, -0.62 * s, 0.25 * s)), red, rot=(0, rz, 0), bevel=0))
+    P["Head"].append(box((1.28 * s, 0.1 * s, 0.1 * s), hc + Vector((0, -0.6 * s, 0.28 * s)), mat("Ceja", (0.05, 0.2, 0.05)),
+                         rot=(0, 0.12, 0), bevel=0))
+    tc = piv["Torso"]
+    P["Torso"].append(box((2.1 * s, 1.1 * s, 1.9 * s), tc, vest, bevel=0.08 * s))                               # chaleco
+    P["Torso"].append(box((0.7 * s, 0.05 * s, 1.3 * s), tc + Vector((0, -0.56 * s, 0.1 * s)), green, bevel=0))  # pecho a la vista
+    for k in range(9):                                                          # cuello de pelo roto
+        a = k * math.pi / 8
+        P["Torso"].append(cone(0.15 * s, 0.5 * s, tc + Vector((math.cos(a) * 1.0 * s, -0.2 * s + math.sin(a) * 0.1, 1.0 * s)), vest,
+                               rot=Vector((math.cos(a) * 0.4, 0, 1)), verts=3))
+    for k in range(6):                                                          # borde desgarrado
+        P["Torso"].append(cone(0.2 * s, 0.4 * s, tc + Vector(((-0.85 + k * 0.34) * s, -0.3 * s, -1.0 * s)), vest, rot=(math.pi, 0, 0), verts=3))
+    chain(P, "Torso", tc + Vector((-1.0 * s, -0.6 * s, 0.9 * s)), tc + Vector((0.9 * s, -0.6 * s, -0.8 * s)), s, steel)
+    chain(P, "Torso", tc + Vector((1.0 * s, -0.6 * s, 0.9 * s)), tc + Vector((-0.9 * s, -0.6 * s, -0.8 * s)), s, steel)
+    lock = tc + Vector((0, -0.72 * s, -0.25 * s))                               # candado
+    P["Torso"] += [box((0.65 * s, 0.25 * s, 0.55 * s), lock, steel, bevel=0.05 * s),
+                   torus(0.2 * s, 0.06 * s, lock + Vector((0, 0, 0.35 * s)), steel, rot=(math.pi / 2, 0, 0), seg=10, minor=4),
+                   box((0.1 * s, 0.05 * s, 0.22 * s), lock + Vector((0, -0.13 * s, -0.05 * s)), K["BLACK"], bevel=0)]
+    for nm in ("LeftArm", "RightArm"):                                           # esposas con pinchos
+        t = piv[nm + "_tip"]
+        P[nm].append(box((2.05 * s, 2.05 * s, 0.45 * s), t + Vector((0, 0, 0.2 * s)), vest, bevel=0.05 * s))
+        for k in range(8):
+            a = k * math.pi / 4
+            P[nm].append(cone(0.12 * s, 0.4 * s, t + Vector((math.cos(a) * 1.05 * s, math.sin(a) * 1.05 * s, 0.2 * s)), steel,
+                              rot=Vector((math.cos(a), math.sin(a), 0)), verts=4))
+        for k in range(4):                                                      # grietas en la piel
+            P[nm].append(box((0.05 * s, 0.03 * s, 0.4 * s), piv[nm].lerp(t, 0.3 + k * 0.12) + Vector((rng.uniform(-0.5, 0.5) * s, -0.96 * s, 0)),
+                             mat("Grieta", (0.08, 0.3, 0.08)), rot=(0, rng.uniform(-0.8, 0.8), 0), bevel=0))
+    for nm in ("LeftLeg", "RightLeg"):                                           # grilletes en los tobillos
+        f = piv[nm + "_foot"]
+        P[nm].append(box((1.05 * s, 1.05 * s, 0.3 * s), f + Vector((0, 0, 0.5 * s)), vest, bevel=0.03 * s))
+    chain(P, "LeftLeg", piv["LeftLeg_foot"] + Vector((0, -0.55 * s, 0.5 * s)), piv["RightLeg_foot"] + Vector((0, -0.55 * s, 0.5 * s)), s, steel, n=5)
+    return finish(P, piv), s
+
+
+def e_esqueleto():
+    K = base_mats()
+    bone = mat("Hueso_Esqueleto", (0.9, 0.88, 0.8))
+    dark = mat("Hueco", (0.05, 0.05, 0.06))
+    P, piv = humanoid(bone, bone, bone, mat("Ojo_Azul", (0.3, 0.6, 1), emission=(0.2, 0.5, 1), strength=6), K, torn=False, w=0.55)
+    tc = piv["Torso"]
+    P["Torso"] = [box((0.3, 0.3, 2.0), tc, bone, bevel=0.05)]                   # columna
+    for k in range(4):                                                          # costillas
+        P["Torso"].append(box((1.7 - k * 0.15, 0.7, 0.14), tc + Vector((0, -0.1, 0.7 - k * 0.35)), bone, bevel=0.05))
+    P["Torso"].append(box((1.6, 0.8, 0.35), tc + Vector((0, 0, -0.9)), bone, bevel=0.08))                      # pelvis
+    return finish(P, piv), 1.0
+
+
+def e_golem_lava():
+    K = base_mats()
+    s = 1.8
+    rng = random.Random(41)
+    rock = mat("Roca_Golem", (0.15, 0.12, 0.11))
+    lava = mat("Lava_Golem", (1, 0.4, 0.05), emission=(1, 0.35, 0.02), strength=6)
+    P, piv = humanoid(rock, rock, rock, lava, K, s=s, w=1.4, arms="down", torn=False)
+    for part in ("Torso", "LeftArm", "RightArm", "LeftLeg", "RightLeg", "Head"):   # grietas de lava
+        c = piv[part] + (Vector((0, 0, 0.62 * s)) if part == "Head" else Vector((0, 0, -0.8 * s if part != "Torso" else 0)))
+        for k in range(4):
+            P[part].append(box((0.08 * s, 0.05 * s, rng.uniform(0.3, 0.7) * s), c + Vector((rng.uniform(-0.4, 0.4) * s, -0.62 * s, rng.uniform(-0.5, 0.5) * s)),
+                               lava, rot=(0, rng.uniform(-0.9, 0.9), 0), bevel=0))
+    for k in range(5):                                                          # rocas en los hombros
+        P["Torso"].append(sphere(rng.uniform(0.3, 0.5) * s, piv["Torso"] + Vector((rng.uniform(-1, 1) * s, 0.2 * s, 1.0 * s)), rock, subdiv=1))
+    return finish(P, piv), s
+
+
+def e_abominacion():
+    K = base_mats()
+    s = 1.7
+    flesh = mat("Carne_Cosida", (0.55, 0.45, 0.4))
+    P, piv = humanoid(flesh, mat("Delantal", (0.4, 0.38, 0.3)), mat("Pantalon_Marron", (0.3, 0.2, 0.12)),
+                      mat("Ojo_Amarillo", (1, 0.9, 0.1), emission=(1, 0.85, 0.1), strength=4), K, s=s, w=1.2, hunch=0.4)
+    tc = piv["Torso"]
+    P["Torso"].append(sphere(1.1 * s, tc + Vector((0, -0.3 * s, -0.2 * s)), flesh, subdiv=2, scale=(1.1, 0.8, 0.9)))
+    for k in range(6):                                                          # costuras
+        p = tc + Vector(((-0.8 + k * 0.3) * s, -1.15 * s, (0.2 - (k % 2) * 0.3) * s))
+        P["Torso"].append(box((0.25 * s, 0.05 * s, 0.05 * s), p, K["BLACK"], rot=(0, 0.3 * (k % 2 * 2 - 1), 0), bevel=0))
+    for sx in (-1, 1):                                                          # brazos extra
+        a = tc + Vector((sx * 1.1 * s, -0.2 * s, -0.4 * s))
+        P["Torso"].append(strut(a, a + Vector((sx * 0.6 * s, -1.5 * s, -0.5 * s)), 0.6 * s, 0.6 * s, flesh, bevel=0.05 * s))
+    hc = piv["Head"] + Vector((0, 0, 0.62 * s))
+    P["Head"].append(box((0.4 * s, 0.2 * s, 0.4 * s), hc + Vector((0.2 * s, -0.55 * s, 0.35 * s)), K["METAL"], bevel=0.03 * s))  # tornillo
+    return finish(P, piv), s
+
+
+def e_vacio():
+    K = base_mats()
+    rng = random.Random(61)
+    void = mat("Vacio", (0.03, 0.0, 0.06))
+    edge = mat("Borde_Vacio", (0.6, 0.1, 1), emission=(0.5, 0.05, 1), strength=5)
+    P, piv = humanoid(void, void, void, edge, K, torn=False, w=0.9)
+    for part in ("Torso", "LeftArm", "RightArm", "LeftLeg", "RightLeg"):
+        c = piv[part] + Vector((0, 0, -0.8 if part != "Torso" else 0))
+        for k in range(3):
+            P[part].append(box((0.06, 0.06, rng.uniform(0.4, 0.9)), c + Vector((rng.uniform(-0.4, 0.4), -0.52, rng.uniform(-0.5, 0.5))), edge,
+                               rot=(0, rng.uniform(-1, 1), 0), bevel=0))
+    for k in range(6):                                                          # cubos de vacío flotando
+        a = k * math.pi / 3
+        P["Torso"].append(box((0.3, 0.3, 0.3), piv["Torso"] + Vector((math.cos(a) * 1.8, math.sin(a) * 1.8, rng.uniform(-0.5, 1.2))), void,
+                              rot=(rng.uniform(0, 1), rng.uniform(0, 1), 0), bevel=0))
+    return finish(P, piv), 1.0
+
+
+def e_helado():
+    K = base_mats()
+    ice = mat("Hielo_Zombi", (0.6, 0.85, 1.0), 0.1, 0.1)
+    P, piv = humanoid(mat("Piel_Helada", (0.55, 0.7, 0.8)), mat("Abrigo_Azul", (0.15, 0.3, 0.55)), mat("Pantalon_Oscuro", (0.15, 0.12, 0.12)),
+                      mat("Ojo_Celeste", (0.4, 0.9, 1), emission=(0.3, 0.8, 1), strength=6), K)
+    hc = piv["Head"] + Vector((0, 0, 0.62))
+    for k in range(5):                                                          # carámbanos
+        P["Head"].append(cone(0.1, 0.35, hc + Vector((-0.4 + k * 0.2, -0.62, -0.5)), ice, rot=(math.pi, 0, 0), verts=5))
+    P["Head"].append(box((1.35, 1.3, 0.35), hc + Vector((0, 0, 0.55)), ice, bevel=0.08))
+    for nm in ("LeftArm", "RightArm"):
+        P[nm].append(strut(piv[nm + "_mid"], piv[nm + "_tip"], 1.0, 1.0, ice, bevel=0.1))
+    for k in range(4):
+        P["Torso"].append(cone(0.2, 0.7, piv["Torso"] + Vector((-0.6 + k * 0.4, 0.4, 1.0)), ice, verts=5))
+    return finish(P, piv), 1.0
+
+
+def e_minero():
+    K = base_mats()
+    P, piv = humanoid(mat("Piel_Zombi", (0.35, 0.55, 0.25)), mat("Camisa_Cuadros", (0.6, 0.15, 0.1)), mat("Jean", (0.2, 0.3, 0.55)),
+                      mat("Ojo_Rojo", (1, 0.1, 0.05), emission=(1, 0.1, 0.05), strength=4), K)
+    hc = piv["Head"] + Vector((0, 0, 0.62))
+    P["Head"] += [sphere(0.8, hc + Vector((0, 0, 0.35)), mat("Casco_Amarillo", (1, 0.8, 0.1), 0.2, 0.4), subdiv=2, scale=(1, 1, 0.6)),
+                  cyl(0.18, 0.2, hc + Vector((0, -0.7, 0.5)), mat("Linterna", (1, 1, 0.8), emission=(1, 1, 0.7), strength=8),
+                      rot=(math.pi / 2, 0, 0), verts=10)]
+    tip = piv["RightArm_tip"]                                                   # pico
+    P["RightArm"] += [strut(tip + Vector((0, 0, -0.3)), tip + Vector((0, -0.2, 1.6)), 0.15, 0.15, K["WOOD"], bevel=0),
+                      strut(tip + Vector((-0.8, -0.2, 1.5)), tip + Vector((0.8, -0.2, 1.5)), 0.18, 0.18, K["METAL"], bevel=0)]
+    for sx in (-1, 1):                                                          # tirantes
+        P["Torso"].append(box((0.18, 0.05, 2.0), piv["Torso"] + Vector((sx * 0.5, -0.52, 0)), mat("Tirante", (0.3, 0.2, 0.1)), bevel=0))
+    return finish(P, piv), 1.0
+
+
 # ------------------------------------------------------------------ armaduras
 ARMORS = {
     "bronce": ((0.72, 0.42, 0.18), (0.45, 0.25, 0.1), None),
@@ -428,13 +875,29 @@ BUILDERS = {
     "zombi_armadura_oro": armored("oro", 1.15, "espada"),
     "zombi_armadura_diamante": armored("diamante", 1.2, "espada"),
     "zombi_armadura_obsidiana": armored("obsidiana", 1.3, "hacha"),
+    "zombi_cyborg": e_cyborg,
+    "zombi_mecanico": e_mecanico,
+    "zombi_boxeador": e_boxeador,
+    "zombi_blindado": e_blindado,
+    "zombi_sigiloso": e_sigiloso,
+    "zombi_alado": e_alado,
+    "lich": e_lich,
+    "jefe_1x1x1x1": e_1x1x1x1,
+    "jefe_john_doe": e_john_doe,
+    "jefe_brute": e_brute,
+    "zombi_esqueleto": e_esqueleto,
+    "golem_lava": e_golem_lava,
+    "zombi_abominacion": e_abominacion,
+    "zombi_vacio": e_vacio,
+    "zombi_helado": e_helado,
+    "zombi_minero": e_minero,
 }
 
 
 def build(nm):
     L.reset()
     objs, s = BUILDERS[nm]()
-    if nm == "zombi_espectral":                                                 # el fantasma flota
+    if nm in ("zombi_espectral", "zombi_alado"):                               # vuelan
         for o in objs:
             o.location.z += 1.0
     out = os.path.join(HERE, nm)

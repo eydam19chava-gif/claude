@@ -128,23 +128,19 @@ Modelos sueltos para poner donde quieras. Todos miran hacia **-Y** (el jugador s
 El script `puestos/puestos.py` los genera. Para regenerar uno solo: `python puestos.py puesto_tienda`.
 
 # Enemigos (`enemigos/`)
-17 enemigos estilo bloque (tipo Roblox R6). Cada uno viene separado en partes con el pivote en la articulación, listo para animar con `Motor6D`:
+33 enemigos estilo bloque (tipo Roblox R6), sin manos (brazos lisos). Cada uno viene separado en partes con el pivote en la articulación, listo para animar con `Motor6D`:
 `Head` (cuello), `Torso`, `LeftArm` / `RightArm` (hombros), `LeftLeg` / `RightLeg` (caderas). Miran hacia **-Y**; los pies están en el piso.
 
-| Enemigo | Idea |
-|---------|------|
-| `zombi_basico` | El común |
-| `zombi_corredor` | Rápido, poca vida |
-| `zombi_tanque` | Lento, mucha vida |
-| `zombi_escudo` | Escudo antidisturbios: bloquea daño de frente |
-| `zombi_radiactivo` | Máscara de gas y barril tóxico |
-| `zombi_astral` | Aureola y estrellas |
-| `zombi_cosmico` | Polvo estelar, capa de nebulosa y anillo planetario |
-| `zombi_radiante` | Corona de rayos, cura a los cercanos |
-| `zombi_invocador` | Túnica, bastón y runas: invoca minions |
-| `zombi_espectral` | Fantasma volador sin piernas |
-| `zombi_armadura_bronce` / `hierro` / `oro` / `diamante` / `obsidiana` | Misma base con armadura completa por nivel (más armadura = más vida) |
-| `minijefe_bruto` | Mini-jefe con casco de cuernos y garrote |
-| `jefe_rey_zombi` | Jefe final con corona, capa y cetro |
+**Comunes:** `zombi_basico`, `zombi_corredor` (rápido), `zombi_tanque` (mucha vida), `zombi_escudo` (bloquea de frente), `zombi_minero`, `zombi_helado`, `zombi_esqueleto`, `zombi_boxeador`, `zombi_blindado` (bandas de chapa).
+
+**Especiales:** `zombi_radiactivo`, `zombi_astral`, `zombi_cosmico`, `zombi_radiante` (cura), `zombi_invocador` (invoca minions), `zombi_vacio`, `zombi_sigiloso` (oculto: solo lo ven torretas con detección), `zombi_abominacion`, `golem_lava`.
+
+**Voladores:** `zombi_espectral` (fantasma), `zombi_alado` (alas de murciélago).
+
+**Con partes robóticas:** `zombi_cyborg` (brazo y pierna de robot, media cara de metal), `zombi_mecanico` (piernas robóticas y taladro).
+
+**Con armadura por nivel:** `zombi_armadura_bronce`, `_hierro`, `_oro`, `_diamante`, `_obsidiana` (más armadura = más vida).
+
+**Jefes:** `minijefe_bruto`, `lich` (calavera y bastón), `jefe_rey_zombi`, `jefe_1x1x1x1` (corona de dominó, costillas, capa roja y espadas de fuego verde), `jefe_john_doe` (brazo de púa corrupta y código binario rojo), `jefe_brute` (cadenas, candado y esposas con pinchos).
 
 `enemigos/enemigos.py` los genera (`python enemigos.py zombi_basico` para uno solo).
