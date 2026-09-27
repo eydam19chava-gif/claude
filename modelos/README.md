@@ -75,6 +75,8 @@ Variables opcionales: `NO_RENDER=1` (solo exporta), `SAMPLES=64`, `RES=900`.
 # Mapa (`mapa/`)
 6 **islas flotantes**, una por jugador, alrededor de una **isla central** con la máquina de la **palanca**. Cada isla está unida al centro por un puente colgante.
 
+**Zona de torretas libre:** a cada lado del camino hay una franja de 9 unidades sin árboles, rocas ni decoración; los monumentos y los puestos están lejos del camino.
+
 **Todas las islas son justas:** tienen exactamente el mismo camino (mismo largo y mismos waypoints), el mismo lugar para torretas y los mismos espacios. Solo cambian el tema y la decoración.
 
 | Isla | Tema | Monumento | Cascada |
@@ -100,6 +102,7 @@ La isla central tiene una fuente, faroles y **6 carteles TOP** (Oleadas, Enemigo
 
 Archivos:
 - `mapa_completo.glb`: todo el mapa en un archivo, con color.
+- `mapa_completo.obj` + `.mtl` + `mapa_paleta.png`: el mapa en OBJ (el color va en el PNG).
 - `Centro.glb`, `Nubes.glb` e `Isla1_Tropical.glb` ... `Isla6_Cristal.glb`: cada parte por separado, por si preferís importarlas de a una (más liviano).
 - `mapa.blend`: para editar en Blender.
 

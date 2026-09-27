@@ -99,15 +99,17 @@ PATHS = [
      (-0.44, 0.0)],                                                                    # S larga
 ]
 LANDMARK_POS = [(0.3, -0.66), (0.3, 0.66), (0.05, 0.68), (0.47, 0.5)]
-VARIANT = [0, 0, 0, 0, 0, 0]   # todas iguales: ninguna isla tiene ventaja
+VARIANT = [0, 0, 0, 0, 0, 0]
+LANDMARK_ABS = (5.0, -44.0, 0.0)   # el monumento va al borde, lejos del camino
+TOWER_CLEAR = 9.0                  # franja libre a cada lado del camino para poner torretas   # todas iguales: ninguna isla tiene ventaja
 # puestos en cada isla (iguales en todas): nombre, posición local, rotación (el modelo mira a -Y), radio libre
 PUESTOS = [("puesto_palanca", (-22.0, 29.0), 0.0, 14.0),
-           ("puesto_tienda", (-17.0, -25.0), math.pi, 6.0),
-           ("puesto_equipamientos", (-33.0, -25.0), math.pi, 6.0),
+           ("puesto_tienda", (-20.0, -30.0), math.pi, 6.0),
+           ("puesto_equipamientos", (-35.0, -27.0), math.pi, 6.0),
            ("puesto_diario", (-44.0, -10.0), math.pi / 2, 4.0),
            ("puesto_mejoras", (-41.0, 15.0), math.pi / 2, 5.0)]
 # zonas aplanadas debajo de los puestos (medio ancho en x, medio ancho en y)
-FLAT = [(-22.0, 29.0, 13.5, 7.0), (-17.0, -25.0, 5.0, 3.8), (-33.0, -25.0, 5.5, 3.8), (-44.0, -10.0, 3.2, 3.2),
+FLAT = [(-22.0, 29.0, 13.5, 7.0), (-20.0, -30.0, 5.0, 3.8), (-35.0, -27.0, 5.5, 3.8), (-44.0, -10.0, 3.2, 3.2),
         (-41.0, 15.0, 1.5, 4.5)]
 
 
@@ -807,18 +809,18 @@ def island(idx, th):
     L.transform([objs[-1]], Matrix.Scale(1.3, 4), hc + Vector((0, 0, TOP - 0.15)))
     pc = pts[0] + Vector((2.5, 0, 0))
     objs.append(join(portal(pc, rng, rock_mat), f"{name}_Portal", pc))
-    lm = Vector(LANDMARK_POS[VARIANT[idx]] + (0,)) * PR
+    lm = Vector(LANDMARK_ABS)                                                # lejos del camino (zona de torretas)
     objs.append(join(landmark(th["landmark"], lm, th, rng, accent), f"{name}_Monumento", lm))
 
     # decoración esparcida en la meseta
     wa_ = 1.3
-    taken = [(hc, 10.5), (pc, 8.0), (lm, 8.0),
+    taken = [(hc, 10.5), (pc, 8.0), (lm, 10.0),
              (Vector((math.cos(wa_), math.sin(wa_), 0)) * rim_at(wa_, seed) * 0.66, 5.0)]
     taken += [(Vector((px, py, 0)), r) for _, (px, py), _, r in PUESTOS]
     trees, rocks, small = [], [], []
 
     def free(p, r):
-        if p.length > 0.72 * R or dist_path(p, pts) < PW + 3.0 + r:  # deja lugar para torretas
+        if p.length > 0.72 * R or dist_path(p, pts) < PW + TOWER_CLEAR + r:  # deja lugar para torretas
             return False
         return all((p - q).length > rr + r for q, rr in taken)
 
@@ -1085,6 +1087,8 @@ for f in os.listdir(OUT):
 L._bake_palette(allobjs, os.path.join(OUT, "mapa_paleta.png"), cell_px=4)
 bpy.ops.object.select_all(action="DESELECT")
 bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, "mapa_completo.glb"), export_format="GLB")
+bpy.ops.wm.obj_export(filepath=os.path.join(OUT, "mapa_completo.obj"), export_materials=True, path_mode="STRIP",
+                      forward_axis="NEGATIVE_Z", up_axis="Y")
 for name in groups:
     bpy.ops.object.select_all(action="DESELECT")
     for o in bpy.data.collections[name].objects:

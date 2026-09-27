@@ -184,7 +184,6 @@ def build_palanca():
             cyl(0.28, 0.2, cc + Vector((0.95, -0.95, 1.05)), K["GREEN_NEON"], rot=(math.pi / 2, 0, 0), verts=12, bevel=0),
             box((0.5, 0.1, 0.12), cc + Vector((-0.95, -0.85, 0.65)), K["BLACK"], bevel=0),   # ranura de monedas
             box((1.6, 0.5, 0.25), cc + Vector((0, -1.05, 0.55)), K["GOLD"], bevel=0.06),     # bandeja
-            cone(0.55, 0.9, cc + Vector((0, 0.1, 4.85)), K["GOLD"], verts=5),                 # estrella arriba
             sphere(0.3, cc + Vector((0, 0.1, 4.5)), material("Estrella", (1, 0.9, 0.2), emission=(1, 0.8, 0.1),
                                                             strength=4), subdiv=1)]
     con.append(cyl(0.45, 0.4, cc + Vector((1.7, 0.1, 2.0)), K["GOLD"], rot=(0, math.pi / 2, 0), verts=16))   # eje
