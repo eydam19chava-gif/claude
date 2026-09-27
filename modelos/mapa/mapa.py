@@ -139,7 +139,19 @@ def rock(p, s, mat, rng):
     return sphere(s, p, mat, subdiv=1, scale=(rng.uniform(0.8, 1.3), rng.uniform(0.8, 1.2), rng.uniform(0.5, 0.9)))
 
 
-def join_chunks(parts, name, maxtris=15000):
+def join_chunks(parts, name, maxtris=15000, cell=14.0):
+    """Une piezas cercanas entre sí (celdas de `cell` unidades) para que Roblox no las simplifique ni las borre."""
+    groups = {}
+    for p in parts:
+        key = (math.floor(p.location.x / cell), math.floor(p.location.y / cell))
+        groups.setdefault(key, []).append(p)
+    out = []
+    for k, (key, ps) in enumerate(sorted(groups.items())):
+        out += _join_limited(ps, f"{name}_{k + 1}", maxtris)
+    return out
+
+
+def _join_limited(parts, name, maxtris):
     """Une piezas en varios objetos de menos de `maxtris` triángulos (límite de Roblox: 20.000)."""
     out, cur, tris = [], [], 0
     for p in parts:
@@ -151,6 +163,11 @@ def join_chunks(parts, name, maxtris=15000):
         tris += t
     if cur:
         out.append(join(cur, f"{name}_{len(out) + 1}" if out else name, (0, 0, 0)))
+    for o in out:                                             # origen en el centro del grupo
+        bpy.ops.object.select_all(action="DESELECT")
+        o.select_set(True)
+        bpy.context.view_layer.objects.active = o
+        bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY", center="BOUNDS")
     return out
 
 
@@ -793,7 +810,7 @@ def island(idx, th):
         z = -rng.uniform(3, 9)
         hang.append(cone(rng.uniform(1.0, 2.2), rng.uniform(4, 8), Vector((math.cos(a) * r, math.sin(a) * r, z - 2)),
                          M(f"{th['name']}_Roca2", th["rock2"]), rot=(math.pi, 0, 0), verts=6))
-    objs.append(join(hang, f"{name}_Rocas_Colgantes", (0, 0, 0)))
+    objs += join_chunks(hang, f"{name}_Rocas_Colgantes")
     # bordillos + faroles en las esquinas
     part = curbs(pts, STONE)
     for i in range(1, len(pts) - 1):
@@ -801,7 +818,7 @@ def island(idx, th):
         out = ((b - a).normalized() - (c2 - b).normalized()).normalized()
         if i % 2 == 1:
             part += lamp(b + out * (PW + 1.4) + Vector((0, 0, TOP - 0.15)))
-    objs.append(join(part, f"{name}_Bordes", (0, 0, 0)))
+    objs += join_chunks(part, f"{name}_Bordes")
     # casa y portal
     hc = pts[-1] + Vector((-5.5, 0, 0))
     objs.append(join(house(hc, accent, flat, M(f"{th['name']}_Techo", tuple(c * 0.8 for c in th["accent"]))
@@ -1018,7 +1035,7 @@ def hub():
         T.append(box((0.9, 0.08, 0.35), pc + Vector((0, 0, 0.95)) - d * 1.02, GOLD, rot=(0, 0, a + math.pi / 2), bevel=0))
         tops.append(join(T, f"Centro_Top_{names[k]}", c))
         tops.append(panel)
-    return [join(P, "Centro_Plaza", (0, 0, 0)), join(deco, "Centro_Arboles", (0, 0, 0)), base] + tops
+    return join_chunks(P, "Centro_Plaza") + join_chunks(deco, "Centro_Arboles") + [base] + tops
 
 
 def bridge(i):
@@ -1047,7 +1064,7 @@ def bridge(i):
     for k in range(0, n, 2):                                                   # vigas de abajo
         p = start + u * (k + 0.5) + Vector((0, 0, z - 0.2))
         P.append(box((0.2, 3.9, 0.2), p, WOOD_D, rot=(0, 0, math.atan2(u.y, u.x)), bevel=0))
-    return join(P, f"Puente_{i + 1}", start)
+    return join_chunks(P, f"Puente_{i + 1}", cell=10.0)
 
 
 # ------------------------------------------------------------------ armar todo
@@ -1066,7 +1083,7 @@ for i, th in enumerate(THEMES):
     ang = math.radians(90 + 60 * i)
     place(objs, ang, Vector((math.cos(ang), math.sin(ang), 0)) * D)
     br = bridge(i)
-    groups[f"Isla{i + 1}_{th['name']}"] = objs + [br]
+    groups[f"Isla{i + 1}_{th['name']}"] = objs + br
     print(f"isla {i + 1} {th['name']} lista")
 
 for name, objs in groups.items():
@@ -1084,7 +1101,7 @@ bpy.ops.wm.save_as_mainfile(filepath=blend)
 for f in os.listdir(OUT):
     if f.endswith(".blend1"):
         os.remove(os.path.join(OUT, f))
-L._bake_palette(allobjs, os.path.join(OUT, "mapa_paleta.png"), cell_px=4)
+L._bake_palette(allobjs, os.path.join(OUT, "mapa_paleta.png"), cell_px=16)
 bpy.ops.object.select_all(action="DESELECT")
 bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, "mapa_completo.glb"), export_format="GLB")
 bpy.ops.wm.obj_export(filepath=os.path.join(OUT, "mapa_completo.obj"), export_materials=True, path_mode="STRIP",

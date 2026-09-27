@@ -167,10 +167,13 @@ def _mat_rgb(mat):
     bsdf = mat.node_tree.nodes["Principled BSDF"]
     glow = bsdf.inputs["Emission Strength"].default_value > 0
     col = bsdf.inputs["Emission Color" if glow else "Base Color"].default_value
-    return [min(1.0, max(0.0, c)) ** (1 / 2.2) for c in col[:3]]
+    # lineal -> casi sRGB (gamma 1.8) y un poco más de saturación, para que en Roblox se parezca al render
+    c = [min(1.0, max(0.0, v)) ** (1 / 1.8) for v in col[:3]]
+    lum = 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]
+    return [min(1.0, max(0.0, lum + (v - lum) * 1.25)) for v in c]
 
 
-def _bake_palette(objs, png_path, cells=None, cell_px=8):
+def _bake_palette(objs, png_path, cells=None, cell_px=16):
     """Pinta todos los materiales en una textura de paleta y deja un solo material con esa imagen.
 
     Así el color viaja dentro de la textura (y dentro del .glb), que es lo que Roblox respeta.

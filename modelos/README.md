@@ -11,6 +11,12 @@ Tiene **un solo archivo `.glb` por torreta**, con los colores incluidos.
 
 ¿Por qué no OBJ? Un `.obj` solo **no guarda colores**. El color va en un `.mtl` y en una imagen aparte, y Roblox no los aplica al importar, por eso se veía gris. Igual cada torreta tiene su OBJ en su carpeta (ver abajo) por si lo necesitás en otro programa.
 
+## Después de importar (importante)
+Pegá el contenido de `roblox/arreglar_modelos.lua` en **View → Command Bar** y apretá Enter. Esto:
+- pone `RenderFidelity = Precise` en todas las mallas, para que Roblox **no les baje el detalle** con la distancia (si no, desaparecen árboles, tablas de puentes, etc.);
+- ancla todo (`Anchored`);
+- deja invisibles los waypoints y sin colisión la decoración.
+
 ## Lista
 | # | Torreta | Rol sugerido | Neón | Triángulos | Partes |
 |---|---------|--------------|------|-----------|--------|
