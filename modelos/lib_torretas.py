@@ -263,7 +263,7 @@ def _light(name, loc, energy, size, target, color=(1, 1, 1)):
     obj.rotation_quaternion = (Vector(target) - Vector(loc)).to_track_quat("-Z", "Y")
 
 
-def render(out, target=(0.4, 0, 2.2), dist=1.0, samples=None, res=None):
+def render(out, target=(0.4, 0, 2.2), dist=1.0, samples=None, res=None, views=None):
     """Renderiza vista frente / costado / atrás. `dist` escala la distancia de cámara."""
     scene = bpy.context.scene
     samples = int(os.environ.get("SAMPLES", samples or 64))
@@ -295,7 +295,7 @@ def render(out, target=(0.4, 0, 2.2), dist=1.0, samples=None, res=None):
     scene.view_settings.view_transform = "AgX"
     scene.view_settings.look = "AgX - Punchy"
 
-    views = {
+    views = {k: Vector(v) for k, v in views.items()} if views else {
         "vista_frente": Vector((6.6, -8.5, 2.8)),
         "vista_costado": Vector((0.1, -11.0, 1.0)),
         "vista_atras": Vector((-8.4, 5.5, 3.3)),
