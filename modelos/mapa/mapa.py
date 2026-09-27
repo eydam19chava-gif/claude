@@ -193,7 +193,7 @@ def to_collection(objs, name):
 
 # ------------------------------------------------------------------ terreno
 def rim_at(a, seed):
-    return R * (1 + 0.1 * noise.noise(Vector((math.cos(a) * 1.5, math.sin(a) * 1.5, seed))))
+    return R   # círculo perfecto
 
 
 def underside(rimf, name, th_rock, th_rock2, th_top, z0=0.12, depth=1.0, seed=0.0):
@@ -255,52 +255,47 @@ def shore(seed, name):
 
 
 def terrain(th, pts, seed, name):
-    N = 96
-    half = 1.15 * R
-    step = 2 * half / N
-    verts, heights = [], {}
+    """Terreno en anillos concéntricos: borde circular perfecto y liso (sin escalones)."""
+    step = 1.6
+    rings = [k * step for k in range(1, int(R / step) + 1)]
+    if rings[-1] < R:
+        rings.append(R)
+    S = 160
 
-    def rim(x, y):
-        return rim_at(math.atan2(y, x), seed)
+    def height(x, y):
+        p = Vector((x, y, 0))
+        d = p.length / R
+        if d < 0.8:
+            h = TOP + 0.3 * noise.noise(Vector((x * 0.08, y * 0.08, seed)))
+        elif d < 0.9:
+            t = (d - 0.8) / 0.1
+            h = TOP * (1 - t) + 0.8 * t
+        else:
+            t = min(1.0, (d - 0.9) / 0.1)
+            h = 0.8 * (1 - t) + 0.15 * t
+        for fx, fy, hx, hy in FLAT:
+            e = math.hypot(max(0.0, abs(x - fx) - hx), max(0.0, abs(y - fy) - hy))
+            if d < 0.8 and e < 2.0:
+                k = e / 2.0
+                h = (TOP - 0.2) * (1 - k) + h * k
+        dp = dist_path(p, pts)
+        if d < 0.8 and dp < PW + 1.2:
+            k = max(0.0, min(1.0, (dp - PW) / 1.2))
+            h = (TOP - 0.15) * (1 - k) + h * k
+        return h
 
-    for j in range(N + 1):
-        for i in range(N + 1):
-            x, y = -half + i * step, -half + j * step
-            p = Vector((x, y, 0))
-            d = p.length / rim(x, y)
-            if d < 0.8:
-                h = TOP + 0.3 * noise.noise(Vector((x * 0.08, y * 0.08, seed)))
-            elif d < 0.9:
-                t = (d - 0.8) / 0.1
-                h = TOP * (1 - t) + 0.8 * t + 0.25 * noise.noise(Vector((x * 0.3, y * 0.3, seed + 3)))
-            elif d < 1.0:
-                t = (d - 0.9) / 0.1
-                h = 0.8 * (1 - t) + 0.15 * t
-            elif d < 1.1:
-                h = 0.15 - (d - 1.0) * 8
-            else:
-                h = -1.2
-            for fx, fy, hx, hy in FLAT:
-                ex = max(0.0, abs(x - fx) - hx)
-                ey = max(0.0, abs(y - fy) - hy)
-                e = math.hypot(ex, ey)
-                if d < 0.8 and e < 2.0:
-                    k = e / 2.0
-                    h = (TOP - 0.2) * (1 - k) + h * k
-            dp = dist_path(p, pts)
-            if d < 0.8 and dp < PW + 1.2:
-                k = max(0.0, min(1.0, (dp - PW) / 1.2))
-                h = (TOP - 0.15) * (1 - k) + h * k
-            verts.append((x, y, h))
-    faces = []
-    for j in range(N):
-        for i in range(N):
-            a = j * (N + 1) + i
-            f = (a, a + 1, a + N + 2, a + N + 1)
-            cx = sum(verts[v][0] for v in f) / 4
-            cy = sum(verts[v][1] for v in f) / 4
-            if math.hypot(cx, cy) / rim(cx, cy) <= 1.0:   # fuera del borde no hay piso: la isla flota
-                faces.append(f)
+    verts = [(0.0, 0.0, height(0.0, 0.0))]
+    for r in rings:
+        for k in range(S):
+            a = 2 * math.pi * k / S
+            x, y = math.cos(a) * r, math.sin(a) * r
+            verts.append((x, y, height(x, y)))
+    faces = [(0, 1 + k, 1 + (k + 1) % S) for k in range(S)]
+    for ri in range(len(rings) - 1):
+        b0, b1 = 1 + ri * S, 1 + (ri + 1) * S
+        for k in range(S):
+            k2 = (k + 1) % S
+            faces.append((b0 + k, b1 + k, b1 + k2, b0 + k2))
     me = bpy.data.meshes.new(name)
     me.from_pydata(verts, [], faces)
     mats = [M(f"{th['name']}_Pasto", th["grass"]), M(f"{th['name']}_Pasto2", th["grass2"]),
@@ -311,7 +306,7 @@ def terrain(th, pts, seed, name):
         me.materials.append(m)
     for f in me.polygons:
         vs = [Vector(verts[v]) for v in f.vertices]
-        c = sum(vs, Vector()) / 4
+        c = sum(vs, Vector()) / len(vs)
         hs = [v.z for v in vs]
         slope = max(hs) - min(hs)
         if c.z > TOP - 0.6 and dist_path(Vector((c.x, c.y, 0)), pts) < PW:
