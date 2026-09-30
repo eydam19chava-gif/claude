@@ -146,39 +146,44 @@ El script `puestos/puestos.py` los genera. Para regenerar uno solo: `python pues
 `enemigos/enemigos.py` los genera (`python enemigos.py zombi_basico` para uno solo).
 
 # Enemigos HD (`enemigos_hd/`)
-5 zombis orgánicos de alto detalle (no son de bloques), con la misma división en partes que `enemigos/`:
-`Head`, `Torso`, `LeftArm`, `RightArm`, `LeftLeg`, `RightLeg` (y `Weapon` en el gigante), pivote en cada articulación, mirando hacia **-Y**, pies en el piso.
+5 zombis **R6** con mucho detalle. El cuerpo es el de un rig R6 de Roblox (Torso 2×2×1, brazos y piernas 1×2×1, cabeza arriba), con las partes llamadas como en R6: `Head`, `Torso`, `Left Arm`, `Right Arm`, `Left Leg`, `Right Leg` (y `Arma` en el gigante). La ropa rota va "pintada" en los bloques y el detalle (placas, casco, venas, cristales, cadenas...) va encima. Miran hacia **-Y** (en el archivo exportado, hacia +Z), pies en el piso.
 
 ![Enemigos HD](enemigos_hd/enemigos_hd.png)
 
-| Enemigo | Idea | Detalles de la malla | Triángulos | Vértices |
-|---------|------|----------------------|-----------:|---------:|
-| `zombi_rapido_hd` | Corredor encorvado, en zancada | Caja torácica con costillas, columna marcada, mandíbula larga caída con 16 dientes, camisa y short con agujeros reales, jirones que flamean hacia atrás, tendones en los antebrazos, garras | 19.264 | 9.838 |
-| `zombi_blindado_hd` | Tanque de chatarra antidisturbios | Peto abollado, placa soldada (cordón de soldadura), hombrera de 3 láminas con remaches, chapa de auto atornillada, escudo rajado con visor y franja, casco táctico con abolladuras, orejeras, montura NVG y visor levantado y rajado | 19.454 | 9.941 |
-| `zombi_berserk_hd` | Puños cerrados listos para embestir | Pectorales y abdominales marcados, 3 cicatrices profundas de garra con tejido rosado y grapas, tendones del cuello y los antebrazos, venas saltadas, púas de hueso en la espalda, carne desgarrada, cadena en el cinturón | 19.590 | 10.041 |
-| `zombi_radiactivo_hd` | Traje hazmat derretido | Traje con agujeros reales y partes quemadas, gotas derretidas, máscara de gas con un lente roto, filtros (uno reventado de cristales), tanque con manguera corrugada, brazo tumoral, pústulas asimétricas (algunas reventadas) y racimos de cristales | 19.608 | 10.070 |
-| `zombi_gigante_hd` | Tanque colosal (~11 de alto) | Piernas-pilar con grilletes y cadena rota, panza cosida, cadena cruzada apoyada en la piel, varillas clavadas en la espalda, colmillos; **viga doble T doblada atravesándole el puño**, con un bloque de concreto y varillas en la punta | 19.718 | 10.081 |
+| Enemigo | Escala R6 | Detalles | Triángulos | Vértices |
+|---------|:---------:|----------|-----------:|---------:|
+| `zombi_rapido_hd` | 1 | Brazos y piernas flacos, hocico largo con mandíbula caída y dientes, ojos que brillan, camisa rasgada en diagonal con las costillas a la vista, columna expuesta, jirones que vuelan hacia atrás, garras | 12.912 | 6.602 |
+| `zombi_blindado_hd` | 1.1 | Peto abollado, placa oxidada soldada, espaldar con franja, hombrera de 3 láminas con remaches, escudo antidisturbios rajado con visor, chapa atornillada a la carne, casco táctico abollado con orejeras y visor levantado rajado, rodilleras, canilleras y botas | 19.808 | 10.094 |
+| `zombi_berserk_hd` | 1.2 | Brazos anchos con bíceps y antebrazos, puños con nudillos pelados, venas saltadas, tendones, pectorales y abdominales, 3 cicatrices de garra con grapas, púas de hueso en la espalda, carne desgarrada, cadena en el cinturón | 13.438 | 6.913 |
+| `zombi_radiactivo_hd` | 1 | Traje hazmat quemado con agujeros y carne, pústulas, máscara de gas con un lente roto (el ojo brilla), filtros (uno reventado de cristales), tanque roto con manguera corrugada, brazo derecho tumoral con garras, gotas derretidas, botas de goma | 19.400 | 9.960 |
+| `zombi_gigante_hd` | 2.3 | Panza cosida con grapas, cadena cruzada apoyada en el cuerpo, varillas clavadas en la espalda, colmillos, grilletes con cadena rota; **viga doble T que le atraviesa el puño** con un bloque de concreto y varillas en la punta | 16.938 | 8.621 |
 
-Números del `.obj`. En el `.glb` los triángulos son los mismos y los vértices pueden subir un poco (hasta ~12.000), porque se duplican donde cambia el color.
+Números del `.obj`. En el `.glb` los triángulos son los mismos y los vértices suben un poco (hasta ~12.000) porque se duplican donde cambia el color.
 
 ## Garantías de la malla (se comprueban solas)
-Todas las piezas son **cáscaras cerradas** (sin agujeros ni bordes sueltos), con **normales hacia afuera**, sin triángulos degenerados y **sin caras coplanares superpuestas** entre piezas (sin z-fighting). La ropa rota y las placas tienen espesor real (no son planos de una cara). Hay dos controles:
+Todas las piezas son **cáscaras cerradas** (sin agujeros ni bordes sueltos), con **normales hacia afuera**, sin triángulos degenerados y **sin caras coplanares superpuestas** entre piezas (sin z-fighting): por eso los brazos quedan separados 2 cm del torso y las piernas se meten 6 cm adentro, en vez de tocarse cara con cara. Hay dos controles:
 - `enemigos_hd.py` valida la geometría antes de exportar y **se niega a exportar** si algo falla.
 - `verificar_obj.py` vuelve a revisar los `.obj` ya exportados, que es lo que importa Roblox: `python verificar_obj.py`.
 
-## En Roblox
-1. Importá el `.glb` (trae el color; ver arriba por qué no el `.obj`). También están en `roblox/`.
-2. Seleccioná el modelo importado y pegá `enemigos_hd/preparar_enemigos_hd.lua` en la Command Bar. Eso deja las mallas **sin colisión** (una sola caja `Hitbox` invisible hace de física), con `CollisionFidelity = Box`, `RenderFidelity = Automatic` (menos detalle de lejos) y `Massless`. **No uses `arreglar_modelos.lua` con estos enemigos**: pone `Precise`, que está bien para el mapa pero es caro con oleadas grandes.
-3. Uní cada parte al `Torso` con `Motor6D` para animarlas (el script ya une el `Torso` al `Hitbox`).
+## En Roblox (armar el R6)
+1. Importá el `.glb` (trae el color; el `.obj` solo no). También están en `roblox/`. El Model tiene que llamarse como el archivo (`zombi_rapido_hd`, etc.).
+2. Seleccioná el Model y pegá `enemigos_hd/armar_r6.lua` en **View → Command Bar**. El script:
+   - crea las partes R6 estándar invisibles (`HumanoidRootPart`, `Torso`, `Head`, brazos, piernas) al tamaño R6 por la escala del enemigo y en el lugar de cada malla;
+   - las une con los **Motor6D estándar de R6** (`RootJoint`, `Neck`, `Left/Right Shoulder`, `Left/Right Hip`), así sirven las animaciones R6 normales;
+   - suelda cada malla a su parte; las mallas quedan **sin colisión, sin peso y con `RenderFidelity = Automatic`** (rinden mejor en oleadas grandes). El `Arma` del gigante va al brazo derecho;
+   - agrega un `Humanoid` con `RigType = R6`.
+3. Para animarlo copiá el script `Animate` de un personaje R6, o usá tus propias animaciones R6.
 
-Los brillos (ojos, pústulas, cristales) vienen en la paleta como color claro. Para que brillen, poné esas partes en `Neon` o agregá un `PointLight`.
+**No uses `roblox/arreglar_modelos.lua` con estos enemigos**: pone `RenderFidelity = Precise`, que está bien para el mapa pero es caro con muchos enemigos a la vez.
+
+Los brillos (ojos, pústulas, cristales) vienen en la paleta como color claro. Para que brillen, poné esas mallas en `Neon` o agregá un `PointLight`.
 
 ## Regenerar
 ```bash
 pip install bpy numpy
-python enemigos_hd.py                     # los 5 (exporta y renderiza)
+python enemigos_hd.py                     # los 5 (exporta, renderiza y regenera armar_r6.lua)
 python enemigos_hd.py zombi_gigante_hd    # uno solo
 SOLO_REVISAR=1 python enemigos_hd.py      # solo valida y muestra triángulos por parte y material
 python enemigos_hd.py --foto              # foto grupal (enemigos_hd.png)
 ```
-`malla.py` tiene las primitivas (cajas redondeadas, elipsoides deformables, tubos por curvas, cristales, tela con espesor) y el validador.
+`malla.py` tiene las primitivas (cajas redondeadas, elipsoides, tubos por curvas, cristales, placas con espesor) y el validador. `armar_r6.lua` se genera desde `armar_r6_plantilla.lua` con las medidas reales de cada malla.
