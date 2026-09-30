@@ -144,3 +144,41 @@ El script `puestos/puestos.py` los genera. Para regenerar uno solo: `python pues
 **Jefes:** `minijefe_bruto`, `lich` (calavera y bastón), `jefe_rey_zombi`, `jefe_1x1x1x1` (corona de dominó, costillas, capa roja y espadas de fuego verde), `jefe_john_doe` (brazo de púa corrupta y código binario rojo), `jefe_brute` (cadenas, candado y esposas con pinchos).
 
 `enemigos/enemigos.py` los genera (`python enemigos.py zombi_basico` para uno solo).
+
+# Enemigos HD (`enemigos_hd/`)
+5 zombis orgánicos de alto detalle (no son de bloques), con la misma división en partes que `enemigos/`:
+`Head`, `Torso`, `LeftArm`, `RightArm`, `LeftLeg`, `RightLeg` (y `Weapon` en el gigante), pivote en cada articulación, mirando hacia **-Y**, pies en el piso.
+
+![Enemigos HD](enemigos_hd/enemigos_hd.png)
+
+| Enemigo | Idea | Detalles de la malla | Triángulos | Vértices |
+|---------|------|----------------------|-----------:|---------:|
+| `zombi_rapido_hd` | Corredor encorvado, en zancada | Caja torácica con costillas, columna marcada, mandíbula larga caída con 16 dientes, camisa y short con agujeros reales, jirones que flamean hacia atrás, tendones en los antebrazos, garras | 19.264 | 9.838 |
+| `zombi_blindado_hd` | Tanque de chatarra antidisturbios | Peto abollado, placa soldada (cordón de soldadura), hombrera de 3 láminas con remaches, chapa de auto atornillada, escudo rajado con visor y franja, casco táctico con abolladuras, orejeras, montura NVG y visor levantado y rajado | 19.454 | 9.941 |
+| `zombi_berserk_hd` | Puños cerrados listos para embestir | Pectorales y abdominales marcados, 3 cicatrices profundas de garra con tejido rosado y grapas, tendones del cuello y los antebrazos, venas saltadas, púas de hueso en la espalda, carne desgarrada, cadena en el cinturón | 19.590 | 10.041 |
+| `zombi_radiactivo_hd` | Traje hazmat derretido | Traje con agujeros reales y partes quemadas, gotas derretidas, máscara de gas con un lente roto, filtros (uno reventado de cristales), tanque con manguera corrugada, brazo tumoral, pústulas asimétricas (algunas reventadas) y racimos de cristales | 19.608 | 10.070 |
+| `zombi_gigante_hd` | Tanque colosal (~11 de alto) | Piernas-pilar con grilletes y cadena rota, panza cosida, cadena cruzada apoyada en la piel, varillas clavadas en la espalda, colmillos; **viga doble T doblada atravesándole el puño**, con un bloque de concreto y varillas en la punta | 19.718 | 10.081 |
+
+Números del `.obj`. En el `.glb` los triángulos son los mismos y los vértices pueden subir un poco (hasta ~12.000), porque se duplican donde cambia el color.
+
+## Garantías de la malla (se comprueban solas)
+Todas las piezas son **cáscaras cerradas** (sin agujeros ni bordes sueltos), con **normales hacia afuera**, sin triángulos degenerados y **sin caras coplanares superpuestas** entre piezas (sin z-fighting). La ropa rota y las placas tienen espesor real (no son planos de una cara). Hay dos controles:
+- `enemigos_hd.py` valida la geometría antes de exportar y **se niega a exportar** si algo falla.
+- `verificar_obj.py` vuelve a revisar los `.obj` ya exportados, que es lo que importa Roblox: `python verificar_obj.py`.
+
+## En Roblox
+1. Importá el `.glb` (trae el color; ver arriba por qué no el `.obj`). También están en `roblox/`.
+2. Seleccioná el modelo importado y pegá `enemigos_hd/preparar_enemigos_hd.lua` en la Command Bar. Eso deja las mallas **sin colisión** (una sola caja `Hitbox` invisible hace de física), con `CollisionFidelity = Box`, `RenderFidelity = Automatic` (menos detalle de lejos) y `Massless`. **No uses `arreglar_modelos.lua` con estos enemigos**: pone `Precise`, que está bien para el mapa pero es caro con oleadas grandes.
+3. Uní cada parte al `Torso` con `Motor6D` para animarlas (el script ya une el `Torso` al `Hitbox`).
+
+Los brillos (ojos, pústulas, cristales) vienen en la paleta como color claro. Para que brillen, poné esas partes en `Neon` o agregá un `PointLight`.
+
+## Regenerar
+```bash
+pip install bpy numpy
+python enemigos_hd.py                     # los 5 (exporta y renderiza)
+python enemigos_hd.py zombi_gigante_hd    # uno solo
+SOLO_REVISAR=1 python enemigos_hd.py      # solo valida y muestra triángulos por parte y material
+python enemigos_hd.py --foto              # foto grupal (enemigos_hd.png)
+```
+`malla.py` tiene las primitivas (cajas redondeadas, elipsoides deformables, tubos por curvas, cristales, tela con espesor) y el validador.
