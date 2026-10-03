@@ -150,3 +150,17 @@ El script `puestos/puestos.py` los genera. Para regenerar uno solo: `python pues
 
 
 `enemigos/enemigos.py` los genera (`python enemigos.py zombi_basico` para uno solo).
+
+# Escudos (`escudos/`)
+Escudos de energía de panal hexagonal, para poner sobre los enemigos en el juego (sin base ni palito). Cada uno es un pedazo de esfera cubierto de hexágonos chicos en relieve, con el borde roto: hexágonos sueltos y marcos de hexágonos grandes que sobresalen. La cara de afuera mira hacia **-Y** y el pivote está en el centro del escudo.
+
+| Modelo | Forma | Triángulos |
+|--------|-------|-----------|
+| `escudo_1_esfera` | Redondo, como el frente de una burbuja | ~15.800 |
+| `escudo_2_ovalado` | Ancho y bajo | ~17.300 |
+| `escudo_4_racimo` | Chico, un racimo de hexágonos | ~3.900 |
+
+Colores: panal celeste brillante, fondo azul oscuro y marcos del borde casi blancos. En Roblox podés ponerle `Material = Neon` o `ForceField` y algo de `Transparency`.
+
+`escudos/escudos.py` los genera (`python escudos.py escudo_1_esfera` para uno solo). Cada carpeta tiene `.glb`, `.obj`, `.fbx`, `.blend` y 3 vistas, y el `.glb` también está en `roblox/`.
+
