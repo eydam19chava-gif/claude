@@ -39,9 +39,8 @@ def mats():
         SHIRT2=mat("Camisa_Oscura", (0.05, 0.14, 0.28)),
         PANTS=mat("Pantalon_Marron", (0.24, 0.14, 0.07)),
         PATCH=mat("Parche_Jean", (0.16, 0.22, 0.38)),
-        SHOE=mat("Zapatilla", (0.06, 0.05, 0.05)),
-        SOLE=mat("Suela", (0.80, 0.78, 0.72)),
-        LACE=mat("Cordon", (0.90, 0.90, 0.88)),
+        MUD=mat("Barro", (0.17, 0.11, 0.06)),
+        DIRT=mat("Tierra", (0.26, 0.20, 0.10)),
         BELT=mat("Cinturon", (0.10, 0.06, 0.04)),
         BUCKLE=mat("Hebilla", (0.55, 0.55, 0.58), 0.9, 0.3),
         BLOOD=mat("Sangre", (0.30, 0.01, 0.01), rough=0.3),
@@ -51,6 +50,7 @@ def mats():
         BRAIN=mat("Cerebro", (0.85, 0.45, 0.50), rough=0.35),
         STITCH=mat("Costura", (0.03, 0.03, 0.03)),
         BANDAGE=mat("Venda", (0.82, 0.78, 0.66)),
+        RUST=mat("Oxido", (0.35, 0.18, 0.08), 0.6, 0.6),
     )
 
 
@@ -64,6 +64,12 @@ def side(P, part, size, x, y, z, m, rot=0.0):
     """Calco plano sobre una cara lateral (x = cara)."""
     sx = 1 if x > 0 else -1
     P[part].append(box((0.04, size[0], size[1]), Vector((x + sx * E, y, z)), m, rot=(rot, 0, 0), bevel=0))
+
+
+def vtri(P, part, x, z, y, r, m):
+    """Triángulo plano que apunta hacia abajo, pegado a la cara frontal (y < 0) o trasera (y > 0)."""
+    sy = 1 if y > 0 else -1
+    P[part].append(cone(r, 0.04, Vector((x, y + sy * E, z)), m, rot=(math.pi / 2, math.pi / 2, 0), verts=3))
 
 
 def jagged_ring(P, part, cx, cy, z, w, d, m, rng, n=4, size=0.16, down=True):
@@ -97,8 +103,15 @@ def torso(P, K, rng):
     T = "Torso"
     P[T].append(box((2, 1, 2), (0, 0, 3), K["SHIRT"], bevel=0.03))
     P[T].append(box((0.7, 0.7, 0.12), (0, 0, 4.03), K["SKIN"], bevel=0.02))                     # cuello
-    # cuello en V roto
-    P[T].append(box((0.5, 0.04, 0.35), (0, -0.5 - E, 3.82), K["SKIN"], rot=(0, math.pi / 4, 0), bevel=0))
+    # cuello en V roto: triángulo de piel, borde de la remera y una cadenita oxidada
+    vtri(P, T, 0, 3.8, -0.5, 0.36, K["SKIN"])
+    P[T].append(box((0.8, 0.8, 0.07), (0, 0, 4.0), K["SHIRT2"], bevel=0.02))
+    for sx in (-1, 1):
+        P[T].append(strut(Vector((sx * 0.02, -0.53, 3.6)), Vector((sx * 0.33, -0.53, 3.98)), 0.07, 0.04, K["SHIRT2"], bevel=0))
+    for k in range(6):
+        t = (k + 0.5) / 6
+        P[T].append(box((0.06, 0.04, 0.06), Vector((-0.3 + 0.6 * t, -0.55, 3.95 - math.sin(t * math.pi) * 0.42)), K["RUST"],
+                        rot=(0, math.pi / 4, 0), bevel=0))
     # borde de abajo desgarrado (la camisa cuelga sobre el cinturón)
     jagged_ring(P, T, 0, 0, 2.32, 2.0, 1.0, K["SHIRT"], rng, n=6, size=0.17)
     # cinturón con hebilla
@@ -131,6 +144,13 @@ def torso(P, K, rng):
     for _ in range(6):
         front(P, T, (rng.uniform(0.12, 0.3), rng.uniform(0.1, 0.25)), rng.uniform(-0.85, -0.1), rng.uniform(2.4, 3.1), -0.5,
               K["BLOOD2"], rot=rng.uniform(0, 3))
+    # bolsillo roto en el pecho derecho (lado -X)
+    front(P, T, (0.42, 0.42), -0.5, 3.55, -0.5, K["SHIRT2"])
+    P[T].append(box((0.44, 0.05, 0.06), (-0.5, -0.53, 3.75), K["SHIRT"], bevel=0))
+    vtri(P, T, -0.35, 3.3, -0.53, 0.1, K["SHIRT2"])                                # esquina colgando
+    for _ in range(4):                                                            # barro
+        front(P, T, (rng.uniform(0.15, 0.3), rng.uniform(0.08, 0.15)), rng.uniform(-0.9, 0.9), rng.uniform(2.3, 2.6), -0.5,
+              K["DIRT"], rot=rng.uniform(-0.3, 0.3))
     # parche cosido a la camisa
     front(P, T, (0.38, 0.32), -0.55, 2.65, -0.5, K["SHIRT2"], rot=0.12)
     stitches(P, T, (-0.75, -0.55, 2.82), (-0.35, -0.55, 2.86), (0, -1, 0), K["STITCH"], n=4, w=0.025, cross=0.1)
@@ -175,15 +195,22 @@ def head(P, K, rng):
     for sx in (-1, 1):
         for _ in range(3):
             a = math.pi / 2 - sx * (math.pi / 2 - rng.uniform(0.15, 1.3))           # siempre hacia atrás (y > 0)
-            p = HEAD + Vector((math.cos(a) * 0.62, math.sin(a) * 0.62, rng.uniform(-0.35, 0.3)))
-            P[H].append(sphere(rng.uniform(0.08, 0.14), p, K["ROT"], subdiv=1, scale=(1, 1, 0.8)))
+            p = HEAD + Vector((math.cos(a) * (0.62 + E), math.sin(a) * (0.62 + E), rng.uniform(-0.35, 0.3)))
+            r = rng.uniform(0.14, 0.26)
+            P[H].append(box((0.04, r, r * 0.8), p, K["ROT"], rot=(rng.uniform(-0.5, 0.5), 0, a), bevel=0))
     # sangre que chorrea por atrás desde el cerebro
     for x, ln in ((0.1, 0.6), (0.3, 0.4), (0.45, 0.75)):
         y = math.sqrt(max(0.0, 0.62 ** 2 - x ** 2)) + E
         P[H].append(box((0.07, 0.04, ln), HEAD + Vector((x, y, 0.5 - ln / 2)), K["BLOOD"], rot=(0, 0, -math.atan2(x, y)), bevel=0))
     # mordida en la parte de atrás con hueso
-    P[H].append(sphere(0.15, HEAD + Vector((-0.35, 0.5, -0.2)), K["FLESH"], subdiv=1, scale=(1, 0.5, 1)))
-    P[H].append(box((0.1, 0.06, 0.1), HEAD + Vector((-0.36, 0.56, -0.2)), K["BONE"], rot=(0, 0, 0.6), bevel=0))
+    a = math.radians(125)
+    p = HEAD + Vector((math.cos(a) * (0.62 + E), math.sin(a) * (0.62 + E), -0.2))
+    P[H].append(box((0.04, 0.3, 0.26), p, K["FLESH"], rot=(0, 0, a), bevel=0))
+    P[H].append(box((0.06, 0.14, 0.08), p, K["BONE"], rot=(0.4, 0, a), bevel=0))
+    for k in range(5):                                                           # marcas de dientes
+        b = k / 5 * 2 * math.pi
+        q = p + Vector((-math.sin(a), math.cos(a), 0)) * math.cos(b) * 0.2 + Vector((0, 0, math.sin(b) * 0.17))
+        P[H].append(box((0.05, 0.06, 0.06), q, K["BLOOD2"], rot=(0, 0, a), bevel=0))
 
 
 def arm(P, K, rng, name, sx):
@@ -194,14 +221,18 @@ def arm(P, K, rng, name, sx):
     # manga corta rota
     P[A].append(box((1.06, 1.06, 0.7), (x, 0, 3.66), K["SHIRT"], bevel=0.03))
     jagged_ring(P, A, x, 0, 3.32, 1.06, 1.06, K["SHIRT"], rng, n=3, size=0.15)
-    # uñas/punta sucia del brazo (sin manos, estilo R6)
-    P[A].append(box((1.02, 1.02, 0.12), (x, 0, 2.06), K["ROT"], bevel=0.02))
-    for k in range(4):
-        P[A].append(cone(0.05, 0.12, Vector((x - 0.36 + k * 0.24, -0.38, 1.97)), K["BONE"], rot=(math.pi, 0, 0), verts=4))
+    # punta del brazo lisa (sin manos ni uñas, estilo R6), manchada de sangre
+    for dx, dy, r in ((-0.15, -0.1, 0.42), (0.2, 0.15, 0.3), (-0.2, 0.25, 0.22)):
+        P[A].append(box((r, r * 0.8, 0.04), (x + dx, dy, 2.0 - E), K["BLOOD2"], rot=(0, 0, r * 4), bevel=0))
+    for k, (dx, ln) in enumerate(((-0.3, 0.35), (0.05, 0.55), (0.3, 0.25))):
+        front(P, A, (0.09, ln), x + dx, 2.0 + ln / 2, -0.5, K["BLOOD"])
+        front(P, A, (0.09, ln * 0.8), x - dx, 2.0 + ln * 0.4, 0.5, K["BLOOD"])
+    for z in (2.35, 2.75):                                                         # venas podridas
+        side(P, A, (0.06, 0.45), x + 0.5 * sx, -0.1, z, K["ROT"], rot=0.6)
     if sx < 0:
         # brazo derecho: vendas con sangre
         for k, z in enumerate((2.95, 2.68, 2.42)):
-            P[A].append(box((1.07, 1.07, 0.16), (x, 0, z), K["BANDAGE"], rot=(0.06 * (k - 1), 0.08 * (1 - k), 0), bevel=0.02))
+            P[A].append(box((1.05, 1.05, 0.13), (x, 0, z), K["BANDAGE"], rot=(0.04 * (k - 1), 0.05 * (1 - k), 0), bevel=0.02))
         P[A].append(box((0.06, 0.25, 0.55), (x - 0.54, -0.25, 2.25), K["BANDAGE"], rot=(0.25, 0, 0), bevel=0))  # punta suelta
         front(P, A, (0.3, 0.25), x + 0.1, 2.7, -0.54, K["BLOOD"], rot=0.3)
         side(P, A, (0.3, 0.22), x - 0.54, 0.1, 2.82, K["BLOOD2"])
@@ -223,27 +254,37 @@ def arm(P, K, rng, name, sx):
 def leg(P, K, rng, name, sx):
     G = name
     x = 0.5 * sx
-    P[G].append(box((1, 1, 2), (x, 0, 1), K["PANTS"], bevel=0.03))
-    # zapatilla: cuerpo, suela, puntera y cordones
-    P[G].append(box((1.06, 1.16, 0.42), (x, -0.06, 0.25), K["SHOE"], bevel=0.05))
-    P[G].append(box((1.08, 1.2, 0.1), (x, -0.07, 0.05), K["SOLE"], bevel=0.02))
-    P[G].append(box((1.0, 0.25, 0.18), (x, -0.6, 0.15), K["SOLE"], bevel=0.04))
-    for k in range(3):
-        P[G].append(box((0.5, 0.05, 0.05), (x, -0.62 - E, 0.5 - k * 0.1), K["LACE"], rot=(0, 0.25 * (1 - 2 * (k % 2)), 0), bevel=0))
+    hem = 0.75 if sx > 0 else 0.6                                                # altura de la botamanga rota
+    P[G].append(box((1, 1, 2), (x, 0, 1), K["SKIN"], bevel=0.03))                # pierna (piel)
+    P[G].append(box((1.03, 1.03, 2.0 - hem), (x, 0, 1.0 + hem / 2), K["PANTS"], bevel=0.03))
+    jagged_ring(P, G, x, 0, hem, 1.03, 1.03, K["PANTS"], rng, n=3, size=0.15)
+    # pie descalzo (sin zapatos ni uñas): barro en la planta y alrededor, tierra que sube por el tobillo
+    P[G].append(box((1.02, 1.02, 0.14), (x, 0, 0.07), K["MUD"], bevel=0.02))
+    for _ in range(5):
+        front(P, G, (rng.uniform(0.12, 0.3), rng.uniform(0.1, 0.25)), x + rng.uniform(-0.35, 0.35), rng.uniform(0.18, 0.4),
+              rng.choice((-0.5, 0.5)), K["DIRT"], rot=rng.uniform(0, 3))
+    for _ in range(2):
+        side(P, G, (rng.uniform(0.2, 0.4), rng.uniform(0.1, 0.2)), x + 0.5 * sx, rng.uniform(-0.3, 0.3), rng.uniform(0.18, 0.35),
+             K["DIRT"], rot=rng.uniform(0, 3))
     if sx > 0:
-        # pierna izquierda: pantalón roto en la rodilla, rodilla y canilla a la vista
-        front(P, G, (0.7, 0.75), x, 1.0, -0.5, K["SKIN"])
-        P[G].append(sphere(0.16, (x, -0.52, 1.05), K["BONE"], subdiv=1, scale=(1.2, 0.5, 1)))   # rótula
-        front(P, G, (0.3, 0.2), x - 0.15, 0.8, -0.53, K["FLESH"], rot=0.4)
+        # pierna izquierda: pantalón roto en la rodilla, rodilla a la vista con la rótula
+        front(P, G, (0.7, 0.45), x, 1.2, -0.515, K["SKIN"])
+        P[G].append(sphere(0.16, (x, -0.54, 1.22), K["BONE"], subdiv=1, scale=(1.2, 0.5, 1)))   # rótula
+        front(P, G, (0.3, 0.16), x - 0.15, 1.07, -0.545, K["FLESH"], rot=0.4)
         for k in range(5):                                                       # hilachas
-            P[G].append(cone(0.08, 0.17, Vector((x - 0.3 + k * 0.15, -0.53, 1.42)), K["PANTS"], rot=(math.pi, 0, 0), verts=3))
-            P[G].append(cone(0.08, 0.15, Vector((x - 0.3 + k * 0.15, -0.53, 0.6)), K["PANTS"], verts=3))
+            P[G].append(cone(0.08, 0.17, Vector((x - 0.3 + k * 0.15, -0.55, 1.45)), K["PANTS"], rot=(math.pi, 0, 0), verts=3))
+        # tajo en la canilla
+        front(P, G, (0.08, 0.4), x + 0.15, 0.5, -0.5, K["FLESH"], rot=0.3)
     else:
         # pierna derecha: parche de jean cosido y botamanga rota
         front(P, G, (0.45, 0.42), x + 0.05, 1.35, -0.5, K["PATCH"], rot=-0.1)
         for z in (1.12, 1.58):
             stitches(P, G, (x - 0.2, -0.54, z), (x + 0.28, -0.54, z - 0.05), (0, -1, 0), K["STITCH"], n=4, w=0.025, cross=0.08)
-        jagged_ring(P, G, x, 0, 0.55, 1.0, 1.0, K["PANTS"], rng, n=3, size=0.14)
+        # grillete oxidado con cadena cortada en el tobillo
+        P[G].append(box((1.1, 1.1, 0.16), (x, 0, 0.42), K["RUST"], bevel=0.03))
+        for k in range(3):
+            P[G].append(box((0.14, 0.06, 0.22), (x - 0.25 + k * 0.12, -0.6 - k * 0.04, 0.3 - k * 0.1), K["RUST"],
+                            rot=(0, 0.5 * (k % 2), 0), bevel=0.01))
     for _ in range(3):
         front(P, G, (rng.uniform(0.1, 0.25), rng.uniform(0.1, 0.25)), x + rng.uniform(-0.3, 0.3), rng.uniform(0.7, 1.8),
               rng.choice((-0.5, 0.5)), K["BLOOD2"], rot=rng.uniform(0, 3))

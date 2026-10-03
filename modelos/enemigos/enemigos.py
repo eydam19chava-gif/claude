@@ -632,12 +632,9 @@ def e_john_doe():
         P["RightArm"].append(cone(0.2 * s, 1.0 * s, sp + Vector((rng.uniform(0, 0.5) * s, -0.4 * s, -k * 0.7 * s)), corrupt,
                                   rot=Vector((1, -0.3, 0.2)), verts=5))
     binary(P, "RightArm", sp + Vector((0.1 * s, 0, -1.2 * s)), s, code, rng, n=8, spread=0.4, face_y=-0.75)
-    # mano izquierda con garras negras
+    # punta del brazo izquierdo corrupta (sin uñas ni garras)
     h = piv["LeftArm_hand"]
     P["LeftArm"].append(box((0.95 * s, 0.95 * s, 0.9 * s), h, corrupt, bevel=0.05 * s))
-    for k in range(3):
-        P["LeftArm"].append(cone(0.1 * s, 0.7 * s, h + Vector(((-0.3 + k * 0.3) * s, -0.3 * s, -0.7 * s)), corrupt,
-                                 rot=Vector((0, -0.4, -1)), verts=4))
     binary(P, "LeftArm", h, s, code, rng, n=4, spread=0.3, face_y=-0.5)
     for nm in ("LeftLeg", "RightLeg"):                                           # pies negros
         P[nm].append(box((1.1 * s, 1.35 * s, 0.7 * s), piv[nm + "_foot"] + Vector((0, -0.1 * s, 0.25 * s)), corrupt, bevel=0.08 * s))

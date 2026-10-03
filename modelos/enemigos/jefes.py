@@ -154,16 +154,11 @@ def john_doe():
                                     (False, (-2.6, -0.4, 4.4)), (True, (-3.8, -0.2, 1.0))]):
         digit(P, "RightArm", pos, code, one)
 
-    # mano izquierda corrupta con garras
+    # brazo izquierdo con la punta corrupta (sin uñas ni garras)
     P["LeftArm"] += [box((1.1, 1.1, 0.9), (1.5, 0, 2.4), corrupt, bevel=0)]
     for k in range(3):
         h = rng.uniform(0.2, 0.5)
         P["LeftArm"].append(box((0.25, 1.11, h), (1.2 + k * 0.3, 0, 2.85 + h / 2), corrupt, bevel=0))
-    for k in range(4):
-        x = 1.15 + k * 0.23
-        a = Vector((x, -0.35, 1.95))
-        P["LeftArm"].append(strut(a, a + Vector((0, -0.25, -0.55)), 0.12, 0.12, corrupt, bevel=0))
-        P["LeftArm"].append(cone(0.07, 0.35, a + Vector((0, -0.45, -0.75)), corrupt, rot=Vector((0, -0.8, -1)), verts=4))
     digit(P, "LeftArm", (2.3, -0.3, 2.0), code, True)
     digit(P, "LeftArm", (2.4, -0.3, 1.3), code, False)
     return finish(P), 3.0
