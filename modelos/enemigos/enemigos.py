@@ -697,6 +697,92 @@ def e_veloz():
     return _zb_body(K, random.Random(23), gear, chest=False), 1.0
 
 
+def e_divisor():
+    """Zombi divisor: gordo y cosido con pedazos de varios zombis; al morir se parte en zombis chicos (en el juego)."""
+    K = _zb_mats()
+    K.update(SHIRT=mat("Franela_Roja", (0.55, 0.12, 0.1)), SHIRT2=mat("Franela_Oscura", (0.25, 0.05, 0.05)),
+             PANTS=mat("Pantalon_Marron", (0.24, 0.14, 0.07)))
+    skin_b = mat("Piel_Gris_Azulada", (0.35, 0.45, 0.5))
+    skin_c = mat("Piel_Violacea", (0.45, 0.35, 0.5))
+    jean = mat("Jean_Remendado", (0.12, 0.2, 0.38))
+    blue = mat("Remiendo_Azul", (0.12, 0.3, 0.55))
+    steel = mat("Grapa", (0.6, 0.6, 0.62), 0.9, 0.3)
+    ooze = mat("Baba_Verde", (0.45, 1.0, 0.15), emission=(0.4, 1.0, 0.1), strength=3)
+    st = K["STITCH"]
+
+    def seam_ring(P, part, cx, cy, z, w, d, staples=True):
+        """Costura alrededor de una caja (w x d) a la altura z, con grapas de metal."""
+        for (a, b, nrm) in (((cx - w / 2 + 0.05, cy - d / 2 - 0.02, z), (cx + w / 2 - 0.05, cy - d / 2 - 0.02, z), (0, -1, 0)),
+                            ((cx - w / 2 + 0.05, cy + d / 2 + 0.02, z), (cx + w / 2 - 0.05, cy + d / 2 + 0.02, z), (0, 1, 0)),
+                            ((cx - w / 2 - 0.02, cy - d / 2 + 0.05, z), (cx - w / 2 - 0.02, cy + d / 2 - 0.05, z), (-1, 0, 0)),
+                            ((cx + w / 2 + 0.02, cy - d / 2 + 0.05, z), (cx + w / 2 + 0.02, cy + d / 2 - 0.05, z), (1, 0, 0))):
+            _zb_stitches(P, part, a, b, nrm, st, n=4, w=0.025, cross=0.1)
+        if staples:
+            P[part].append(box((0.06, 0.05, 0.2), (cx + w * 0.2, cy - d / 2 - 0.04, z), steel, bevel=0))
+
+    def drip(P, part, x, z, y, ln):
+        """Chorro de baba verde sobre una cara frontal (y < 0) o trasera (y > 0)."""
+        _zb_front(P, part, (0.07, ln), x, z - ln / 2, y, ooze)
+        sy = 1 if y > 0 else -1
+        P[part].append(sphere(0.06, (x, y + sy * 0.04, z - ln), ooze, subdiv=1, scale=(1, 0.6, 1.3)))
+
+    def gear(P):
+        T = P["Torso"]
+        # --- panza gorda con costura en Y
+        bc = Vector((0, -0.68, 2.62))
+        T.append(box((1.6, 0.4, 0.78), bc, K["SKIN"], bevel=0.15))
+        fy = bc.y - 0.2
+        _zb_stitches(P, "Torso", (0, fy - 0.02, 2.95), (0, fy - 0.02, 2.3), (0, -1, 0), st, n=6, w=0.03, cross=0.14)
+        for sx in (-1, 1):
+            _zb_stitches(P, "Torso", (0, fy - 0.02, 2.95), (sx * 0.55, fy - 0.02, 3.0), (0, -1, 0), st, n=4, w=0.03, cross=0.12)
+        _zb_front(P, "Torso", (0.45, 0.32), 0.45, 2.55, fy, skin_b, rot=0.1)          # pedazo de piel de otro zombi
+        for k, (a, b) in enumerate((((0.22, 2.4), (0.68, 2.42)), ((0.22, 2.72), (0.68, 2.7)))):
+            _zb_stitches(P, "Torso", (a[0], fy - 0.03, a[1]), (b[0], fy - 0.03, b[1]), (0, -1, 0), st, n=4, w=0.02, cross=0.08)
+        for x, ln in ((0.02, 0.35), (-0.12, 0.2), (0.3, 0.25)):
+            drip(P, "Torso", x, 2.33, fy, ln)
+        for x in (-0.4, 0.4):                                                       # grapas en la panza
+            T.append(box((0.2, 0.05, 0.05), (x * 0.5, fy - 0.04, 2.6 + x * 0.3), steel, bevel=0))
+        # rollos a los costados
+        for sx in (-1, 1):
+            T.append(box((0.25, 0.7, 0.5), (sx * 1.06, -0.15, 2.45), K["SKIN"], bevel=0.1))
+            _zb_stitches(P, "Torso", (sx * 1.2, -0.45, 2.7), (sx * 1.2, 0.15, 2.65), (sx, 0, 0), st, n=3, w=0.02, cross=0.08)
+        # remiendo de otra camisa (azul) en el pecho derecho y en la espalda, cosidos
+        _zb_front(P, "Torso", (0.55, 0.55), -0.5, 3.45, -0.5, blue, rot=0.08)
+        _zb_front(P, "Torso", (0.6, 0.5), 0.55, 3.55, 0.5, blue, rot=-0.1)
+        for z in (3.18, 3.72):
+            _zb_stitches(P, "Torso", (-0.78, -0.55, z), (-0.22, -0.55, z + 0.04), (0, -1, 0), st, n=4, w=0.02, cross=0.08)
+        # costura del cuello (cabeza cosida a otro cuerpo) con baba
+        seam_ring(P, "Torso", 0, 0, 4.06, 0.72, 0.72, staples=False)
+        drip(P, "Torso", 0.15, 3.98, -0.5, 0.3)
+        # brazo chiquito cosido en la espalda (de otro zombi)
+        base = Vector((-0.55, 0.52, 3.55))
+        tip = base + Vector((-0.25, 0.75, 0.45))
+        T.append(strut(base, tip, 0.42, 0.42, skin_c, bevel=0.04))
+        T.append(L.torus(0.27, 0.035, base + Vector((0, 0.06, 0)), st, rot=(tip - base).normalized(), seg=12, minor=4))
+        for k in range(6):
+            a = k / 6 * 2 * math.pi
+            T.append(box((0.05, 0.12, 0.05), base + Vector((math.cos(a) * 0.27, 0.06, math.sin(a) * 0.27)), st, bevel=0))
+        T.append(box((0.43, 0.43, 0.05), tip, K["BLOOD2"], rot=(0.6, 0, 0.3), bevel=0))
+        drip(P, "Torso", -0.4, 3.35, 0.5, 0.45)
+        # --- brazos: la mitad de abajo es de otros zombis
+        for nm, sx, sk in (("RightArm", -1, skin_b), ("LeftArm", 1, skin_c)):
+            x = sx * 1.5
+            P[nm].append(box((1.015, 1.015, 0.84), (x, 0, 2.41), sk, bevel=0.02))      # tapa también la punta
+            seam_ring(P, nm, x, 0, 2.84, 1.02, 1.02)
+            drip(P, nm, x + 0.2 * sx, 2.8, -0.51, 0.25)
+        # --- piernas: pantalón de dos colores y la canilla derecha de otro zombi
+        for o in P["LeftLeg"]:
+            for i, m in enumerate(o.data.materials):
+                if m == K["PANTS"]:
+                    o.data.materials[i] = jean
+        P["RightLeg"].append(box((1.015, 1.015, 0.42), (-0.5, 0, 0.36), skin_b, bevel=0.02))
+        seam_ring(P, "RightLeg", -0.5, 0, 0.57, 1.02, 1.02, staples=False)
+        for z in (1.25, 1.75):                                                      # costura del pantalón remendado
+            _zb_side(P, "LeftLeg", (0.04, 0.5), 1.0, 0, z, st)
+
+    return _zb_body(K, random.Random(31), gear, chest=False), 1.0
+
+
 def e_corredor():
     K = base_mats()
     skin = mat("Piel_Corredor", (0.45, 0.6, 0.3))
@@ -1429,6 +1515,7 @@ BUILDERS = {
     "zombi_basico": e_basico,
     "zombi_generador": e_generador,
     "zombi_veloz": e_veloz,
+    "zombi_divisor": e_divisor,
     "zombi_corredor": e_corredor,
     "zombi_tanque": e_tanque,
     "zombi_escudo": e_escudo,
