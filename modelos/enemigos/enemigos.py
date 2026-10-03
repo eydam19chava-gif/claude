@@ -969,7 +969,14 @@ def e_excavador():
         hc = ZB_HEAD + Vector((0, 0, 0.42))
         H.append(sphere(0.72, hc, helmet, subdiv=3, scale=(1, 1, 0.6)))
         H.append(cyl(0.84, 0.06, hc + Vector((0, 0, -0.08)), helmet, verts=24, bevel=0.01))
-        H.append(box((0.12, 1.2, 0.12), hc + Vector((0, 0, 0.4)), helmet, bevel=0.03))                   # cresta
+        # taladro chico arriba del casco, apuntando adelante y arriba (el que va primero al cavar)
+        db, dd = hc + Vector((0, -0.15, 0.36)), Vector((0, -0.8, 0.6)).normalized()
+        H.append(cyl(0.2, 0.14, db, dark, rot=dd, verts=12, bevel=0.02))
+        H.append(cyl(0.15, 0.08, db + dd * 0.1, yellow, rot=dd, verts=12, bevel=0))
+        H.append(cone(0.14, 0.45, db + dd * 0.36, metal, rot=dd, verts=12))
+        H.append(cone(0.04, 0.08, db + dd * 0.6, hot, rot=dd, verts=8))
+        for k in range(3):
+            H.append(L.torus(0.12 - k * 0.035, 0.022, db + dd * (0.2 + k * 0.12), dark, rot=dd, seg=10, minor=4))
         for a, z in ((0.7, 0.2), (2.6, 0.1), (4.2, 0.25)):                       # abolladuras
             H.append(sphere(0.09, hc + Vector((math.cos(a) * 0.66, math.sin(a) * 0.66, z)), mat("Abolladura", (0.6, 0.3, 0.03), 0.2, 0.5),
                             subdiv=1, scale=(1, 1, 0.5)))
@@ -988,6 +995,19 @@ def e_excavador():
                 H.append(box((0.06, 0.06, ln), p, mud, bevel=0))
         clods(H, hc + Vector((0.15, 0.15, 0.4)), 0.25, 4)
         crystal(H, hc + Vector((-0.25, 0.2, 0.38)), Vector((-0.3, 0.2, 1)).normalized(), 0.8)
+        # --- medidor de profundidad en el tirante izquierdo (pantalla verde)
+        mc = Vector((0.5, -0.66, 3.0))
+        T.append(box((0.32, 0.1, 0.4), mc, dark, bevel=0.02))
+        T.append(box((0.24, 0.03, 0.14), mc + Vector((0, -0.05, 0.08)), mat("Pantalla_Verde", (0.2, 1.0, 0.3), emission=(0.15, 1.0, 0.25), strength=3), bevel=0))
+        for k in range(3):
+            T.append(box((0.05, 0.03, 0.06), mc + Vector((-0.08 + k * 0.08, -0.05, -0.1)), (yellow, black, mat("Led_Rojo", (1, 0.1, 0.05), emission=(1, 0.1, 0.05), strength=4))[k], bevel=0))
+        # --- martillo de geólogo y cincel colgando del cinturón (lado derecho, -X)
+        hb = Vector((-0.88, -0.62, 1.95))
+        T.append(strut(hb + Vector((0, 0, 0.12)), hb + Vector((0.05, 0, -0.45)), 0.06, 0.06, wood, bevel=0))
+        T.append(box((0.32, 0.09, 0.1), hb + Vector((0.06, 0, -0.48)), metal, bevel=0.01))
+        T.append(cone(0.05, 0.14, hb + Vector((0.27, 0, -0.48)), metal, rot=Vector((1, 0, 0)), verts=4))
+        T.append(L.rod(Vector((-0.62, -0.6, 2.1)), Vector((-0.6, -0.62, 1.7)), 0.03, metal, verts=6))
+        T.append(cone(0.035, 0.08, Vector((-0.6, -0.62, 1.66)), metal, rot=(math.pi, 0, 0), verts=4))
         # --- chaleco naranja con bandas plateadas (dos vueltas)
         for z in (3.3, 2.65):
             T.append(box((2.05, 1.05, 0.24), (0, 0, z), vest, bevel=0))
@@ -1071,6 +1091,21 @@ def e_excavador():
             for _ in range(3):
                 _zb_side(P, nm, (rng.uniform(0.2, 0.4), rng.uniform(0.15, 0.3)), sx * 2.0, rng.uniform(-0.3, 0.3), rng.uniform(2.2, 3.2), dirt,
                          rot=rng.uniform(0, 1))
+        # --- hombreras de metal remachadas (lado de afuera de cada brazo)
+        for nm, sx in (("RightArm", -1), ("LeftArm", 1)):
+            pc = Vector((sx * 2.06, 0, 3.6))
+            P[nm].append(box((0.08, 1.12, 0.8), pc, metal, bevel=0.03))
+            P[nm].append(box((0.1, 1.14, 0.08), pc + Vector((0, 0, -0.38)), dark, bevel=0))
+            for y in (-0.42, 0.42):
+                for z in (-0.25, 0.25):
+                    P[nm].append(sphere(0.045, pc + Vector((sx * 0.05, y, z)), dark, subdiv=1))
+        # --- rodilleras de metal con correas
+        for nm, sx in (("RightLeg", -1), ("LeftLeg", 1)):
+            kc = Vector((sx * 0.5, -0.56, 1.25))
+            P[nm].append(box((0.7, 0.12, 0.45), kc, metal, bevel=0.04))
+            P[nm].append(box((0.4, 0.06, 0.2), kc + Vector((0, -0.07, 0)), dark, bevel=0.01))
+            for z in (1.12, 1.38):
+                P[nm].append(box((1.05, 1.05, 0.06), (sx * 0.5, 0, z), black, bevel=0))
         # --- piernas cubiertas de tierra y barro
         for nm, sx in (("RightLeg", -1), ("LeftLeg", 1)):
             for _ in range(4):
