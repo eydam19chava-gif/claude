@@ -136,7 +136,7 @@ El script `puestos/puestos.py` los genera. Para regenerar uno solo: `python pues
 
 **Comunes:** `zombi_basico` (R6 clásico **sin cara**, descalzo y muy detallado: cerebro a la vista, camisa rota con costillas y columna, vendas, mordidas, parche, barro y grillete oxidado), `zombi_corredor` (rápido), `zombi_tanque` (mucha vida), `zombi_escudo` (bloquea de frente), `zombi_minero`, `zombi_helado`, `zombi_esqueleto`, `zombi_boxeador`, `zombi_blindado` (bandas de chapa).
 
-**Especiales:** `zombi_veloz` (rápido: corre con los brazos hacia atrás, turbina en la espalda con 2 propulsores, propulsores en las pantorrillas, rayo en el pecho, vincha con tiras al viento y velocímetro a fondo en la muñeca; ver abajo), `zombi_generador` (apoyo: mochila generadora de escudos con núcleo de energía, 2 bobinas proyectoras, celdas de energía, manómetro, franjas de peligro, mangueras corrugadas al emisor del pecho, cable en la nuca, auricular, mando de muñeca, bolsillos con herramientas y parche "G-7"; ver abajo), `zombi_radiactivo`, `zombi_astral`, `zombi_cosmico`, `zombi_radiante` (cura), `zombi_invocador` (invoca minions), `zombi_vacio`, `zombi_sigiloso` (oculto: solo lo ven torretas con detección), `zombi_abominacion`, `golem_lava`.
+**Especiales:** `zombi_veloz` (rápido: ropa deportiva, turbina en la espalda con 2 propulsores, propulsores en las pantorrillas, rayo en el pecho, vincha con tiras al viento y velocímetro a fondo en la muñeca), `zombi_generador` (apoyo: mochila generadora de escudos con núcleo de energía, 2 bobinas proyectoras, celdas de energía, manómetro, franjas de peligro, mangueras corrugadas al emisor del pecho, cable en la nuca, auricular, mando de muñeca, bolsillos con herramientas y parche "G-7"; ver abajo), `zombi_radiactivo`, `zombi_astral`, `zombi_cosmico`, `zombi_radiante` (cura), `zombi_invocador` (invoca minions), `zombi_vacio`, `zombi_sigiloso` (oculto: solo lo ven torretas con detección), `zombi_abominacion`, `golem_lava`.
 
 **Voladores:** `zombi_espectral` (fantasma), `zombi_alado` (alas de murciélago).
 
@@ -148,6 +148,5 @@ El script `puestos/puestos.py` los genera. Para regenerar uno solo: `python pues
 
 **`zombi_generador` y su escudo:** el modelo **no trae escudo**, se crea en el juego. Tiene una parte aparte, `Nucleo` (el cilindro de energía de la mochila), con el pivote en su centro: soldala al `Torso` con un `WeldConstraint` y usala como punto de origen del escudo (por ejemplo, una esfera con `Material = ForceField` centrada en `Nucleo.Position`) y para animar el brillo.
 
-**`zombi_veloz`:** la turbina de la espalda es una parte aparte, `Turbina`, con el pivote en su eje. Soldala al `Torso` con un `Motor6D` y hacela girar (alrededor de su eje Y local) para que parezca que está a toda velocidad. Las toberas naranjas de los propulsores sirven para ponerles fuego o partículas en el juego.
 
 `enemigos/enemigos.py` los genera (`python enemigos.py zombi_basico` para uno solo).

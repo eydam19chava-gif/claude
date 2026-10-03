@@ -592,11 +592,7 @@ def e_generador():
 
 
 def e_veloz():
-    """Zombi veloz: corre como "Naruto" (brazos hacia atrás), con turbina en la espalda y propulsores en las piernas.
-
-    La turbina es una parte aparte, `Turbina`, con el pivote en su eje: se la puede hacer girar en el juego
-    (alrededor de su eje Y local). Hay que soldarla al `Torso` (WeldConstraint o Motor6D).
-    """
+    """Zombi veloz: ropa deportiva, turbina con propulsores en la espalda y propulsores en las piernas."""
     K = _zb_mats()
     K.update(SHIRT=mat("Musculosa_Naranja", (0.95, 0.38, 0.04)), SHIRT2=mat("Negro_Deportivo", (0.04, 0.04, 0.05)),
              PANTS=mat("Jogger_Negro", (0.06, 0.06, 0.07)))
@@ -688,26 +684,17 @@ def e_veloz():
             n = Vector((x, 0.72, 0.48))
             G.append(cyl(0.16, 0.2, n, steel, verts=12, bevel=0, r2=0.21))       # tobera para abajo
             G.append(cyl(0.18, 0.03, n + Vector((0, 0, -0.11)), fire, verts=12, bevel=0))
-            for sy in (-1, 1):                                                   # aletas
-                G.append(strut(Vector((x + sx * 0.3, 0.55, 1.1)), Vector((x + sx * 0.45, 0.95, 0.75)), 0.04, 0.2, red, bevel=0))
+            G.append(strut(Vector((x + sx * 0.3, 0.55, 1.1)), Vector((x + sx * 0.45, 0.95, 0.75)), 0.04, 0.2, red, bevel=0))  # aleta
 
-    pose = {"RightArm": Matrix.Rotation(math.radians(62), 4, "X") @ Matrix.Rotation(math.radians(-8), 4, "Y"),
-            "LeftArm": Matrix.Rotation(math.radians(62), 4, "X") @ Matrix.Rotation(math.radians(8), 4, "Y"),
-            "RightLeg": Matrix.Rotation(-math.radians(28), 4, "X"), "LeftLeg": Matrix.Rotation(math.radians(28), 4, "X"),
-            "Head": Matrix.Rotation(-math.radians(10), 4, "X")}
-    objs = _zb_body(K, random.Random(23), gear, pose=pose, chest=False)
-    # turbina: parte aparte para hacerla girar
-    fan = [cyl(0.12, 0.34, tc, fire, rot=(math.pi / 2, 0, 0), verts=12, bevel=0),
-           cyl(0.18, 0.3, tc, steel, rot=(math.pi / 2, 0, 0), verts=12, bevel=0.02)]
-    for k in range(8):
-        a = k / 8 * 2 * math.pi
-        fan.append(box((0.42, 0.04, 0.14), tc + Vector((math.cos(a) * 0.36, 0.02, math.sin(a) * 0.36)), steel,
-                       rot=(0.35, -a, 0), bevel=0))
-    objs.append(join(fan, "Turbina", tc))
-    low = min((o.matrix_world @ v.co).z for o in objs for v in o.data.vertices)   # apoyar los pies justo en el piso
-    for o in objs:
-        o.location.z -= low
-    return objs, 1.0
+        # aspas de la turbina
+        T += [cyl(0.12, 0.34, tc, fire, rot=(math.pi / 2, 0, 0), verts=12, bevel=0),
+              cyl(0.18, 0.3, tc, steel, rot=(math.pi / 2, 0, 0), verts=12, bevel=0.02)]
+        for k in range(8):
+            a = k / 8 * 2 * math.pi
+            T.append(box((0.42, 0.04, 0.14), tc + Vector((math.cos(a) * 0.36, 0.02, math.sin(a) * 0.36)), steel,
+                         rot=(0.35, -a, 0), bevel=0))
+
+    return _zb_body(K, random.Random(23), gear, chest=False), 1.0
 
 
 def e_corredor():
