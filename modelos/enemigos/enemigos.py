@@ -1124,15 +1124,16 @@ def e_comandante():
     """Jefe Comandante Escudo: zombi gigante con un generador de escudos enorme (los escudos se crean en el juego)."""
     s = 2.5
     K = _zb_mats()
-    K.update(SHIRT=mat("Uniforme_Comandante", (0.08, 0.1, 0.18)), SHIRT2=mat("Uniforme_Oscuro", (0.04, 0.05, 0.09)),
-             PANTS=mat("Pantalon_Comandante", (0.07, 0.08, 0.12)))
-    armor = mat("Blindaje_Comandante", (0.2, 0.22, 0.26), 0.85, 0.3)
+    K.update(SHIRT=mat("Uniforme_Rojo", (0.42, 0.03, 0.04)), SHIRT2=mat("Uniforme_Rojo_Oscuro", (0.2, 0.01, 0.02)),
+             PANTS=mat("Pantalon_Azul", (0.06, 0.09, 0.35)))
+    armor = mat("Blindaje_Azul_Rey", (0.05, 0.17, 0.65), 0.6, 0.3)
     dark = mat("Metal_Oscuro", (0.1, 0.1, 0.12), 0.7, 0.45)
     steel = mat("Acero", (0.5, 0.52, 0.56), 0.9, 0.3)
     gold = mat("Oro", (1.0, 0.72, 0.2), 1.0, 0.25)
     black = mat("Negro", (0.02, 0.02, 0.02))
     yellow = mat("Peligro_Amarillo", (0.95, 0.7, 0.05), 0.2, 0.5)
-    banner = mat("Estandarte_Azul", (0.06, 0.12, 0.35))
+    banner = mat("Estandarte_Rojo", (0.6, 0.04, 0.05))
+    cape = mat("Capa_Roja", (0.55, 0.03, 0.04), 0.0, 0.6)
     glow = mat("Energia_Celeste", (0.3, 0.85, 1.0), emission=(0.2, 0.75, 1.0), strength=3)
     medals = [mat("Cinta_Roja", (0.7, 0.05, 0.05)), mat("Cinta_Azul", (0.1, 0.3, 0.8)), mat("Cinta_Verde", (0.1, 0.5, 0.15))]
 
@@ -1152,8 +1153,12 @@ def e_comandante():
         H = P["Head"]
         # --- gorra de oficial con visera e insignia hexagonal (la visera no es una cara)
         hc = ZB_HEAD + Vector((0, 0, 0.5))
-        H.append(cyl(0.66, 0.28, hc, K["SHIRT"], verts=24, bevel=0.03))
-        H.append(cyl(0.7, 0.1, hc + Vector((0, 0, 0.16)), K["SHIRT"], verts=24, bevel=0.03))
+        H.append(cyl(0.66, 0.28, hc, armor, verts=24, bevel=0.03))
+        H.append(cyl(0.7, 0.1, hc + Vector((0, 0, 0.16)), armor, verts=24, bevel=0.03))
+        for k in range(9):                                                         # penacho rojo
+            a = math.radians(-60 + k * 15)
+            H.append(box((0.06, 0.12, 0.5), hc + Vector((0, math.sin(a) * 0.3, 0.3 + math.cos(a) * 0.2)), banner, rot=(a, 0, 0), bevel=0))
+        H.append(box((0.1, 0.5, 0.08), hc + Vector((0, 0, 0.22)), gold, bevel=0))
         H.append(cyl(0.665, 0.08, hc + Vector((0, 0, -0.1)), gold, verts=24, bevel=0))
         H.append(box((0.9, 0.42, 0.05), hc + Vector((0, -0.72, -0.16)), black, rot=(0.25, 0, 0), bevel=0.02))      # visera
         hexplate(H, hc + Vector((0, -0.68, 0.06)), 0.14, (math.pi / 2, 0, 0), gold, 0.05)
@@ -1215,6 +1220,27 @@ def e_comandante():
         # caños del generador a las hombreras
         for sx in (-1, 1):
             T.append(L.rod(gc + Vector((sx * 0.75, -0.2, 0.9)), Vector((sx * 1.2, 0.3, 4.2)), 0.07, dark, verts=8))
+        # --- banda cruzada roja con estrella dorada
+        a0, a1 = Vector((0.85, -0.67, 3.88)), Vector((-0.85, -0.67, 2.82))
+        T.append(strut(a0, a1, 0.04, 0.22, banner, bevel=0))
+        T.append(strut(a0 + Vector((0, -0.01, 0.11)), a1 + Vector((0, -0.01, 0.11)), 0.04, 0.03, gold, bevel=0))
+        T.append(strut(a0 + Vector((0, -0.01, -0.11)), a1 + Vector((0, -0.01, -0.11)), 0.04, 0.03, gold, bevel=0))
+        st = a0.lerp(a1, 0.2) + Vector((0, -0.04, 0))
+        T.append(cyl(0.13, 0.04, st, gold, rot=(math.pi / 2, 0, 0), verts=5, bevel=0))
+        # --- líneas de energía en el peto
+        for sx in (-1, 1):
+            T.append(box((0.5, 0.03, 0.05), (sx * 0.5, -0.64, 3.1), glow, rot=(0, sx * 0.5, 0), bevel=0))
+            T.append(box((0.05, 0.03, 0.4), (sx * 0.72, -0.64, 3.55), glow, bevel=0))
+        # --- flecos dorados en las hombreras y colas de capa roja rasgadas
+        for sx in (-1, 1):
+            for k in range(7):
+                T.append(box((0.05, 0.06, 0.28), (sx * 2.14, -0.5 + k * 0.165, 3.86), gold, bevel=0))
+            cc = Vector((sx * 1.35, 0.7, 2.7))
+            T.append(box((0.62, 0.05, 2.5), cc, cape, rot=(-0.12, 0, sx * 0.05), bevel=0))
+            T.append(box((0.64, 0.06, 0.08), cc + Vector((0, -0.15, 1.2)), gold, rot=(-0.12, 0, 0), bevel=0))
+            for k in range(3):                                                     # borde rasgado
+                T.append(cone(0.11, 0.22, cc + Vector((-0.2 + k * 0.2, 0.15, -1.33)), cape, rot=(math.pi, 0, 0), verts=3))
+            _zb_front(P, "Torso", (0.2, 0.15), cc.x, 2.0, cc.y + 0.12, K["BLOOD2"], rot=0.6)   # agujero/mancha
         # --- brazo izquierdo: escudo hexagonal de placas (sin manos ni uñas)
         A = P["LeftArm"]
         A.append(box((1.15, 1.15, 0.5), (1.5, 0, 2.4), armor, bevel=0.05))
@@ -1245,6 +1271,8 @@ def e_comandante():
             P[nm].append(box((1.1, 1.1, 0.06), (x, 0, 1.42), gold, bevel=0))
             P[nm].append(box((0.55, 0.14, 0.45), (x, -0.58, 1.35), armor, bevel=0.04))
             hexplate(P[nm], Vector((x, -0.66, 1.35)), 0.12, (math.pi / 2, 0, 0), glow, 0.04)
+            for dx in (-0.4, 0.4):                                                  # líneas de energía
+                P[nm].append(box((0.04, 0.03, 0.55), (x + dx, -0.555, 1.0), glow, bevel=0))
 
     objs = _zb_body(K, random.Random(61), gear, chest=False)
     L.transform(objs, Matrix.Scale(s, 4), (0, 0, 0))

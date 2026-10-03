@@ -3,6 +3,9 @@
 Torretas low-poly sci-fi, cada una con su base, su forma y su color de neón.
 Todas apuntan hacia **+X** y están separadas en partes para poder animarlas en Roblox.
 
+## Si en Roblox se ven grises: carpeta `con_color/`
+Si al importar el `.glb` u `.obj` el modelo queda gris (Roblox no tomó la textura de paleta), usá los de `con_color/`: cada parte viene separada en una pieza por color, con el color en el nombre (`Torso__1A6BFF`, y `_N` si brilla). Importalos y pegá `con_color/pintar_colores.lua` en **View → Command Bar**: pinta cada pieza con su color y pone Neon a las que brillan. Sirve igual con `.glb` o `.obj`, no necesita ninguna imagen. Se generan con `python exportar_con_color.py <modelo> ...`.
+
 ## Para Roblox: carpeta `roblox/`
 **Todos los modelos están juntos en `roblox/`**: torretas, puestos, enemigos, jefes, el Inferno Zombie y el mapa (completo y por partes). Cada modelo nuevo se copia ahí automáticamente.
 Para bajarlos todos de una vez: **`todos_los_modelos.zip`**. Trae `glb/` (un archivo por modelo, con color), `obj/` (una carpeta por modelo con su `.obj`, `.mtl` y la imagen de color) y `arreglar_modelos.lua`.
@@ -144,7 +147,7 @@ El script `puestos/puestos.py` los genera. Para regenerar uno solo: `python pues
 
 **Con armadura por nivel:** `zombi_armadura_bronce`, `_hierro`, `_oro`, `_diamante`, `_obsidiana` (más armadura = más vida).
 
-**Jefes:** `jefe_comandante_escudo` (gigante: gorra de oficial, peto con hexágono y medallas, hombreras con púas, generador enorme con 3 núcleos y 4 bobinas, estandarte, escudo hexagonal en el brazo izquierdo y cañón emisor en el derecho; los escudos de energía se crean en el juego), `minijefe_bruto`, `lich` (calavera y bastón), `jefe_rey_zombi`, `jefe_1x1x1x1` (corona de dominó, costillas, capa roja y espadas de fuego verde), `jefe_john_doe` (brazo de púa corrupta, el otro brazo con la punta corrupta sin garras, y código binario rojo), `jefe_brute` (cadenas, candado y esposas con pinchos).
+**Jefes:** `jefe_comandante_escudo` (gigante, azul rey, rojo y dorado: gorra de oficial con penacho, banda con estrella, flecos dorados, colas de capa roja, líneas de energía, peto con hexágono y medallas, hombreras con púas, generador enorme con 3 núcleos y 4 bobinas, estandarte, escudo hexagonal en el brazo izquierdo y cañón emisor en el derecho; los escudos de energía se crean en el juego), `minijefe_bruto`, `lich` (calavera y bastón), `jefe_rey_zombi`, `jefe_1x1x1x1` (corona de dominó, costillas, capa roja y espadas de fuego verde), `jefe_john_doe` (brazo de púa corrupta, el otro brazo con la punta corrupta sin garras, y código binario rojo), `jefe_brute` (cadenas, candado y esposas con pinchos).
 
 **`zombi_generador` y su escudo:** el modelo **no trae escudo**, se crea en el juego. Tiene una parte aparte, `Nucleo` (el cilindro de energía de la mochila), con el pivote en su centro: soldala al `Torso` con un `WeldConstraint` y usala como punto de origen del escudo (por ejemplo, una esfera con `Material = ForceField` centrada en `Nucleo.Position`) y para animar el brillo.
 
