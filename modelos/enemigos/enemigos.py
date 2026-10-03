@@ -894,7 +894,7 @@ def e_explosivo():
 
 
 def e_excavador():
-    """Zombi excavador: va bajo tierra. Casco con lámpara, taladros en los brazos, motor y pala en la espalda, tierra encima."""
+    """Zombi excavador: va bajo tierra. Casco con lámpara, taladros en los brazos, motor y herramientas en la espalda, tierra encima."""
     K = _zb_mats()
     K.update(SHIRT=mat("Camisa_Trabajo", (0.32, 0.26, 0.18)), SHIRT2=mat("Trabajo_Oscuro", (0.18, 0.14, 0.09)),
              PANTS=mat("Pantalon_Tierra", (0.2, 0.16, 0.12)))
@@ -905,10 +905,19 @@ def e_excavador():
     wood = mat("Madera", (0.35, 0.2, 0.1))
     dirt = mat("Tierra", (0.26, 0.17, 0.08))
     clod = mat("Terron", (0.33, 0.22, 0.1))
+    mud = mat("Barro", (0.17, 0.11, 0.06))
     rock = mat("Piedra", (0.42, 0.42, 0.4))
     root = mat("Raiz", (0.4, 0.28, 0.16))
-    reflect = mat("Franja_Reflectiva", (0.85, 0.9, 0.2), 0.1, 0.3)
+    vest = mat("Chaleco_Naranja", (1.0, 0.3, 0.02), 0.1, 0.5)
+    silver = mat("Banda_Plateada", (0.8, 0.82, 0.85), 0.8, 0.2)
+    black = mat("Negro", (0.02, 0.02, 0.02))
+    yellow = mat("Peligro_Amarillo", (0.95, 0.7, 0.05), 0.2, 0.5)
+    rope = mat("Soga", (0.7, 0.58, 0.35))
+    worm = mat("Gusano", (0.85, 0.45, 0.5), rough=0.4)
     lamp = mat("Lampara", (1, 0.95, 0.7), emission=(1, 0.9, 0.6), strength=8)
+    hot = mat("Metal_Al_Rojo", (1.0, 0.35, 0.05), emission=(1.0, 0.3, 0.02), strength=5)
+    gems = [mat("Cristal_Violeta", (0.6, 0.2, 1.0), emission=(0.55, 0.15, 1.0), strength=3),
+            mat("Cristal_Celeste", (0.2, 0.8, 1.0), emission=(0.15, 0.75, 1.0), strength=3)]
     soot = mat("Hollin", (0.08, 0.07, 0.07))
     hose = mat("Manguera", (0.05, 0.05, 0.06), 0.1, 0.6)
     rng = random.Random(53)
@@ -921,58 +930,134 @@ def e_excavador():
             T.append(box((sz, sz * rng.uniform(0.7, 1.2), sz * 0.7), p, rock if rng.random() < 0.25 else clod,
                          rot=(rng.uniform(-0.4, 0.4), rng.uniform(-0.4, 0.4), rng.uniform(0, 3)), bevel=0.02))
 
-    def drill(A, tip):
-        """Taladro cónico con espiral, apuntando hacia -Z desde `tip` (punta del brazo en reposo)."""
-        A.append(cyl(0.48, 0.22, tip + Vector((0, 0, -0.08)), dark, verts=16, bevel=0.03))
-        A.append(cyl(0.36, 0.12, tip + Vector((0, 0, -0.24)), metal, verts=16, bevel=0.01))
-        A.append(cone(0.36, 1.05, tip + Vector((0, 0, -0.82)), metal, rot=(math.pi, 0, 0), verts=16))
-        for k in range(6):                                                      # espiral
-            t = k / 6
-            A.append(L.torus(0.34 * (1 - t) + 0.03, 0.035, tip + Vector((0, 0, -0.38 - t * 0.9)), dark,
-                             rot=Vector((0.25, 0.1 * (k % 2), 1)).normalized(), seg=12, minor=4))
+    def crystal(T, c, d, s=1.0):
+        """Cristal de mineral que brilla, clavado en la tierra apuntando hacia d."""
+        m = gems[rng.randrange(2)]
+        T.append(cyl(0.08 * s, 0.3 * s, c + d * 0.1 * s, m, rot=d, verts=6, bevel=0))
+        T.append(cone(0.08 * s, 0.14 * s, c + d * 0.32 * s, m, rot=d, verts=6))
+        d2 = (d + Vector((0.5, 0.3, 0.2))).normalized()
+        T.append(cone(0.05 * s, 0.22 * s, c + d2 * 0.12 * s, m, rot=d2, verts=6))
+
+    def drill(A, tip, sx):
+        """Taladro cónico con espiral y dientes, punta al rojo; apunta hacia -Z desde `tip` (punta del brazo en reposo)."""
+        A.append(cyl(0.5, 0.24, tip + Vector((0, 0, -0.08)), dark, verts=16, bevel=0.03))
+        for k in range(8):                                                       # tuercas del collar
+            a = k / 8 * 2 * math.pi
+            A.append(cyl(0.05, 0.06, tip + Vector((math.cos(a) * 0.42, math.sin(a) * 0.42, -0.21)), metal, verts=6, bevel=0))
+        A.append(cyl(0.38, 0.12, tip + Vector((0, 0, -0.26)), yellow, verts=16, bevel=0.01))
+        A.append(cone(0.36, 1.1, tip + Vector((0, 0, -0.85)), metal, rot=(math.pi, 0, 0), verts=16))
+        A.append(cone(0.08, 0.2, tip + Vector((0, 0, -1.32)), hot, rot=(math.pi, 0, 0), verts=12))      # punta al rojo
+        for k in range(7):                                                       # espiral con dientes
+            t = k / 7
+            c = tip + Vector((0, 0, -0.38 - t * 0.9))
+            r = 0.34 * (1 - t) + 0.04
+            A.append(L.torus(r, 0.035, c, dark, rot=Vector((0.25, 0.1 * (k % 2), 1)).normalized(), seg=12, minor=4))
+            a = k * 1.9
+            d = Vector((math.cos(a), math.sin(a), -0.3)).normalized()
+            A.append(cone(0.05, 0.14, c + Vector((math.cos(a) * r, math.sin(a) * r, 0)), metal, rot=d, verts=4))
+        for sy in (-1, 1):                                                       # pistones hidráulicos
+            a0 = Vector((tip.x + sx * 0.42, sy * 0.3, 3.2))
+            a1 = Vector((tip.x + sx * 0.42, sy * 0.3, 2.0))
+            A.append(L.rod(a0, a0.lerp(a1, 0.55), 0.06, dark, verts=8))
+            A.append(L.rod(a0.lerp(a1, 0.5), a1, 0.035, metal, verts=8))
         clods(A, tip + Vector((0, 0, -0.3)), 0.3, 3, up=False)
 
     def gear(P):
         T = P["Torso"]
-        # --- casco de obra con lámpara y tierra encima (tapa el cerebro)
-        hc = ZB_HEAD + Vector((0, 0, 0.42))
         H = P["Head"]
+        # --- casco de obra abollado, con lámpara, batería y barro
+        hc = ZB_HEAD + Vector((0, 0, 0.42))
         H.append(sphere(0.72, hc, helmet, subdiv=3, scale=(1, 1, 0.6)))
         H.append(cyl(0.84, 0.06, hc + Vector((0, 0, -0.08)), helmet, verts=24, bevel=0.01))
         H.append(box((0.12, 1.2, 0.12), hc + Vector((0, 0, 0.4)), helmet, bevel=0.03))                   # cresta
-        H.append(cyl(0.17, 0.16, hc + Vector((0, -0.7, 0.12)), dark, rot=(math.pi / 2, 0, 0), verts=14, bevel=0.01))
-        H.append(cyl(0.13, 0.04, hc + Vector((0, -0.79, 0.12)), lamp, rot=(math.pi / 2, 0, 0), verts=14, bevel=0))
-        H.append(L.rod(hc + Vector((0.12, -0.6, 0.0)), hc + Vector((0.45, 0.5, -0.25)), 0.025, hose, verts=6))
+        for a, z in ((0.7, 0.2), (2.6, 0.1), (4.2, 0.25)):                       # abolladuras
+            H.append(sphere(0.09, hc + Vector((math.cos(a) * 0.66, math.sin(a) * 0.66, z)), mat("Abolladura", (0.6, 0.3, 0.03), 0.2, 0.5),
+                            subdiv=1, scale=(1, 1, 0.5)))
+        H.append(box((0.04, 0.25, 0.18), hc + Vector((0.66, -0.1, 0.12)), yellow, rot=(0, 0.35, 0), bevel=0))   # calcomanía
+        H.append(box((0.05, 0.08, 0.08), hc + Vector((0.69, -0.1, 0.12)), black, rot=(0.785, 0.35, 0), bevel=0))
+        H.append(box((0.22, 0.14, 0.28), hc + Vector((0, 0.72, 0.0)), dark, bevel=0.02))                  # batería
+        H.append(cyl(0.2, 0.18, hc + Vector((0, -0.7, 0.12)), dark, rot=(math.pi / 2, 0, 0), verts=14, bevel=0.01))
+        H.append(cyl(0.15, 0.04, hc + Vector((0, -0.8, 0.12)), lamp, rot=(math.pi / 2, 0, 0), verts=14, bevel=0))
+        H.append(L.torus(0.17, 0.025, hc + Vector((0, -0.8, 0.12)), metal, rot=(math.pi / 2, 0, 0), seg=14, minor=4))
+        H.append(L.rod(hc + Vector((0.12, -0.6, 0.0)), hc + Vector((0.1, 0.65, -0.05)), 0.025, hose, verts=6))
+        for k in range(6):                                                       # barro chorreando del ala
+            a = rng.uniform(0, 2 * math.pi)
+            ln = rng.uniform(0.08, 0.2)
+            p = hc + Vector((math.cos(a) * 0.8, math.sin(a) * 0.8, -0.1 - ln / 2))
+            if math.sin(a) > -0.5:                                                # no tapar el frente
+                H.append(box((0.06, 0.06, ln), p, mud, bevel=0))
         clods(H, hc + Vector((0.15, 0.15, 0.4)), 0.25, 4)
-        # --- tiradores y franjas reflectivas
-        for sx in (-1, 1):
-            T.append(box((0.2, 0.06, 1.8), (sx * 0.5, -0.53, 3.05), K["SHIRT2"], bevel=0))
-            T.append(box((0.22, 0.07, 0.1), (sx * 0.5, -0.56, 3.75), metal, bevel=0))
-        T.append(box((2.05, 1.05, 0.18), (0, 0, 3.3), reflect, bevel=0))
-        # --- motor con escape y pala en la espalda
-        ec = Vector((0, 0.78, 3.15))
+        crystal(H, hc + Vector((-0.25, 0.2, 0.38)), Vector((-0.3, 0.2, 1)).normalized(), 0.8)
+        # --- chaleco naranja con bandas plateadas (dos vueltas)
+        for z in (3.3, 2.65):
+            T.append(box((2.05, 1.05, 0.24), (0, 0, z), vest, bevel=0))
+            T.append(box((2.07, 1.07, 0.07), (0, 0, z), silver, bevel=0))
+        for sx in (-1, 1):                                                       # tiradores
+            T.append(box((0.2, 0.06, 1.8), (sx * 0.5, -0.555, 3.05), K["SHIRT2"], bevel=0))
+            T.append(box((0.22, 0.07, 0.1), (sx * 0.5, -0.58, 3.75), metal, bevel=0))
+        # --- motor detallado en la espalda
+        ec = Vector((0, 0.78, 3.1))
         T.append(box((1.1, 0.5, 0.95), ec, engine, bevel=0.06))
-        for k in range(5):                                                      # aletas de enfriamiento
+        for k in range(5):                                                       # aletas de enfriamiento
             T.append(box((0.9, 0.06, 0.05), ec + Vector((0, 0.27, -0.3 + k * 0.15)), dark, bevel=0))
-        ex0 = ec + Vector((0.38, 0.12, 0.45))
-        T.append(L.rod(ex0, ex0 + Vector((0, 0.05, 0.8)), 0.08, dark, verts=10))
-        T.append(cyl(0.11, 0.1, ex0 + Vector((0, 0.05, 0.85)), metal, verts=10, bevel=0))
-        T.append(cyl(0.07, 0.04, ex0 + Vector((0, 0.05, 0.91)), soot, verts=10, bevel=0))
-        _zb_front(P, "Torso", (0.3, 0.25), 0.38, ec.z + 0.25, ec.y + 0.25, soot)
-        a, b = Vector((-0.75, 1.1, 2.35)), Vector((0.55, 1.1, 4.6))             # pala cruzada
+        for k in range(5):                                                       # franjas de peligro abajo
+            T.append(box((0.2, 0.52, 0.12), ec + Vector((-0.45 + k * 0.22, 0, -0.42)), yellow if k % 2 == 0 else black,
+                         rot=(0, 0.5, 0), bevel=0))
+        tk = ec + Vector((-0.2, 0.05, 0.62))                                     # tanque de combustible
+        T.append(cyl(0.2, 0.75, tk, mat("Tanque_Rojo", (0.7, 0.08, 0.05), 0.4, 0.4), rot=(0, math.pi / 2, 0), verts=12, bevel=0.02))
+        T.append(cyl(0.07, 0.08, tk + Vector((0.2, 0, 0.2)), dark, verts=8, bevel=0))
+        for sx in (-1, 1):                                                       # pistones a los costados
+            T.append(cyl(0.1, 0.5, ec + Vector((sx * 0.62, 0.05, 0.1)), metal, verts=10, bevel=0.01))
+            T.append(cyl(0.12, 0.08, ec + Vector((sx * 0.62, 0.05, 0.38)), dark, verts=10, bevel=0))
+        g = ec + Vector((0.3, 0.27, 0.25))                                      # manómetro
+        T.append(cyl(0.12, 0.05, g, metal, rot=(math.pi / 2, 0, 0), verts=14, bevel=0))
+        T.append(cyl(0.09, 0.03, g + Vector((0, 0.03, 0)), mat("Dial", (0.92, 0.92, 0.88)), rot=(math.pi / 2, 0, 0), verts=14, bevel=0))
+        T.append(box((0.015, 0.02, 0.08), g + Vector((0.02, 0.05, 0.02)), black, rot=(0, -0.6, 0), bevel=0))
+        ex0 = ec + Vector((0.4, 0.12, 0.45))                                     # escape
+        T.append(L.rod(ex0, ex0 + Vector((0, 0.05, 0.85)), 0.08, dark, verts=10))
+        T.append(cyl(0.11, 0.1, ex0 + Vector((0, 0.05, 0.9)), metal, verts=10, bevel=0))
+        T.append(cyl(0.07, 0.04, ex0 + Vector((0, 0.05, 0.96)), soot, verts=10, bevel=0))
+        # --- pico y pala cruzados en X
+        a, b = Vector((-0.8, 1.12, 2.3)), Vector((0.6, 1.12, 4.6))              # pala
         T.append(strut(a, b, 0.09, 0.09, wood, bevel=0))
         T.append(box((0.3, 0.08, 0.1), b + (b - a).normalized() * 0.05, dark, rot=(0, -math.atan2(b.z - a.z, b.x - a.x), 0), bevel=0))
         T.append(box((0.5, 0.06, 0.6), a + Vector((-0.12, 0, -0.25)), metal, rot=(0, 0.52, 0), bevel=0.02))
-        for sx in (-1, 1):                                                      # mangueras a los taladros
+        a, b = Vector((0.8, 1.18, 2.3)), Vector((-0.55, 1.18, 4.45))            # pico
+        T.append(strut(a, b, 0.09, 0.09, wood, bevel=0))
+        d = (b - a).normalized()
+        perp = Vector((d.z, 0, -d.x))
+        T.append(strut(b - perp * 0.55, b + perp * 0.55 + d * 0.05, 0.1, 0.12, metal, bevel=0.01))
+        T.append(cone(0.06, 0.2, b - perp * 0.62, metal, rot=-perp, verts=4))
+        T.append(cone(0.06, 0.2, b + perp * 0.62, metal, rot=perp, verts=4))
+        # rollo de soga al costado
+        for k in range(3):
+            T.append(L.torus(0.24, 0.045, Vector((1.08, 0.3, 2.9 + k * 0.07)), rope, rot=(0, math.pi / 2, 0), seg=14, minor=4))
+        # --- mangueras y correas
+        for sx in (-1, 1):
             T.append(L.rod(ec + Vector((sx * 0.5, 0, 0.3)), Vector((sx * 0.9, 0.3, 3.9)), 0.05, hose, verts=6))
             T.append(box((0.22, 1.06, 0.06), (sx * 0.55, 0, 4.03), K["SHIRT2"], bevel=0.01))
-        # --- tierra por todos lados
+        # --- tierra, cristales y gusanos en los hombros
         for sx in (-1, 1):
-            clods(T, Vector((sx * 0.6, 0, 4.03)), 0.25, 4)                      # hombros
-        for _ in range(10):
+            clods(T, Vector((sx * 0.6, 0, 4.03)), 0.25, 4)
+            crystal(T, Vector((sx * 0.75, 0.2, 4.05)), Vector((sx * 0.5, 0.2, 1)).normalized())
+        crystal(T, ec + Vector((-0.45, 0.25, -0.1)), Vector((-0.6, 0.6, 0.3)).normalized(), 0.8)
+        for c in (Vector((0.4, -0.2, 4.08)), Vector((-0.35, 0.3, 4.08))):        # gusanos
+            pts = [c + Vector((k * 0.08, math.sin(k * 1.4) * 0.06, abs(math.sin(k * 0.9)) * 0.06)) for k in range(5)]
+            for p0, p1 in zip(pts, pts[1:]):
+                T.append(L.rod(p0, p1, 0.03, worm, verts=6))
+        for _ in range(8):
             _zb_front(P, "Torso", (rng.uniform(0.15, 0.35), rng.uniform(0.1, 0.25)), rng.uniform(-0.9, 0.9), rng.uniform(2.3, 3.9),
                       rng.choice((-0.5, 0.5)), dirt, rot=rng.uniform(0, 3))
-        for k in range(4):                                                      # raíces colgando del cinturón
+        # --- farol colgado del cinturón y raíces
+        fc = Vector((0.85, -0.62, 1.75))
+        T.append(L.rod(Vector((0.85, -0.55, 2.1)), fc + Vector((0, 0, 0.22)), 0.02, dark, verts=6))
+        T.append(cyl(0.12, 0.05, fc + Vector((0, 0, 0.18)), dark, verts=10, bevel=0))
+        T.append(cyl(0.09, 0.22, fc, lamp, verts=10, bevel=0))
+        for k in range(4):
+            a = k / 4 * 2 * math.pi + 0.4
+            T.append(box((0.025, 0.025, 0.24), fc + Vector((math.cos(a) * 0.1, math.sin(a) * 0.1, 0)), dark, bevel=0))
+        T.append(cyl(0.12, 0.04, fc + Vector((0, 0, -0.13)), dark, verts=10, bevel=0))
+        for k in range(3):
             p = Vector((-0.8 + k * 0.5, -0.53, 2.05))
             q = p + Vector((rng.uniform(-0.15, 0.15), -0.03, -rng.uniform(0.35, 0.6)))
             T.append(strut(p, q, 0.04, 0.04, root, bevel=0))
@@ -980,13 +1065,13 @@ def e_excavador():
         # --- taladros en las puntas de los brazos (sin manos ni uñas)
         for nm, sx in (("RightArm", -1), ("LeftArm", 1)):
             x = sx * 1.5
-            drill(P[nm], Vector((x, 0, 2.0)))
+            drill(P[nm], Vector((x, 0, 2.0)), sx)
             P[nm].append(L.rod(Vector((x + sx * 0.52, 0.2, 3.3)), Vector((x + sx * 0.5, 0.2, 2.1)), 0.05, hose, verts=6))
             clods(P[nm], Vector((x, 0, 4.0)), 0.3, 3)
             for _ in range(3):
                 _zb_side(P, nm, (rng.uniform(0.2, 0.4), rng.uniform(0.15, 0.3)), sx * 2.0, rng.uniform(-0.3, 0.3), rng.uniform(2.2, 3.2), dirt,
                          rot=rng.uniform(0, 1))
-        # --- piernas enterradas hasta las rodillas de tierra
+        # --- piernas cubiertas de tierra y barro
         for nm, sx in (("RightLeg", -1), ("LeftLeg", 1)):
             for _ in range(4):
                 _zb_side(P, nm, (rng.uniform(0.25, 0.45), rng.uniform(0.2, 0.4)), sx * 1.0, rng.uniform(-0.3, 0.3), rng.uniform(0.3, 1.0), dirt,
@@ -994,9 +1079,10 @@ def e_excavador():
             for y in (-0.5, 0.5):
                 for _ in range(2):
                     _zb_front(P, nm, (rng.uniform(0.2, 0.4), rng.uniform(0.15, 0.3)), sx * 0.5 + rng.uniform(-0.25, 0.25), rng.uniform(0.3, 0.9), y,
-                              dirt, rot=rng.uniform(0, 3))
+                              mud, rot=rng.uniform(0, 3))
+            clods(P[nm], Vector((sx * 0.5, -0.45, 0.2)), 0.35, 3, up=False)
 
-    return _zb_body(K, random.Random(53), gear), 1.0
+    return _zb_body(K, random.Random(53), gear, chest=False), 1.0
 
 
 def e_corredor():
