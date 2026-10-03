@@ -133,7 +133,7 @@ El script `puestos/puestos.py` los genera. Para regenerar uno solo: `python pues
 
 **Comunes:** `zombi_basico` (R6 clásico **sin cara**, descalzo y muy detallado: cerebro a la vista, camisa rota con costillas y columna, vendas, mordidas, parche, barro y grillete oxidado), `zombi_corredor` (rápido), `zombi_tanque` (mucha vida), `zombi_escudo` (bloquea de frente), `zombi_minero`, `zombi_helado`, `zombi_esqueleto`, `zombi_boxeador`, `zombi_blindado` (bandas de chapa).
 
-**Especiales:** `zombi_generador` (apoyo: mochila generadora de escudos con núcleo de energía, antena, cables al emisor del pecho, auricular y mando de muñeca; ver abajo), `zombi_radiactivo`, `zombi_astral`, `zombi_cosmico`, `zombi_radiante` (cura), `zombi_invocador` (invoca minions), `zombi_vacio`, `zombi_sigiloso` (oculto: solo lo ven torretas con detección), `zombi_abominacion`, `golem_lava`.
+**Especiales:** `zombi_generador` (apoyo: mochila generadora de escudos con núcleo de energía, 3 bobinas proyectoras, celdas de energía, manómetro, franjas de peligro, mangueras corrugadas al emisor del pecho, cable en la nuca, auricular, mando de muñeca, bolsillos con herramientas y parche "G-7"; ver abajo), `zombi_radiactivo`, `zombi_astral`, `zombi_cosmico`, `zombi_radiante` (cura), `zombi_invocador` (invoca minions), `zombi_vacio`, `zombi_sigiloso` (oculto: solo lo ven torretas con detección), `zombi_abominacion`, `golem_lava`.
 
 **Voladores:** `zombi_espectral` (fantasma), `zombi_alado` (alas de murciélago).
 
@@ -143,6 +143,6 @@ El script `puestos/puestos.py` los genera. Para regenerar uno solo: `python pues
 
 **Jefes:** `minijefe_bruto`, `lich` (calavera y bastón), `jefe_rey_zombi`, `jefe_1x1x1x1` (corona de dominó, costillas, capa roja y espadas de fuego verde), `jefe_john_doe` (brazo de púa corrupta, el otro brazo con la punta corrupta sin garras, y código binario rojo), `jefe_brute` (cadenas, candado y esposas con pinchos).
 
-**Escudo del `zombi_generador`:** la cúpula de energía viene como una parte aparte llamada `Escudo` (con su anillo y nodos emisores en el piso). El `.glb` no guarda transparencia, así que en Roblox ponele a la cúpula `Material = ForceField` (o `Transparency = 0.7`), `CanCollide = false` y un color celeste. Para prender o apagar el escudo, cambiá `Transparency` entre ese valor y `1`, o borrala y volvé a clonarla. `vista_sin_escudo.png` muestra al zombi sin la cúpula.
+**`zombi_generador` y su escudo:** el modelo **no trae escudo**, se crea en el juego. Tiene una parte aparte, `Nucleo` (el cilindro de energía de la mochila), con el pivote en su centro: soldala al `Torso` con un `WeldConstraint` y usala como punto de origen del escudo (por ejemplo, una esfera con `Material = ForceField` centrada en `Nucleo.Position`) y para animar el brillo.
 
 `enemigos/enemigos.py` los genera (`python enemigos.py zombi_basico` para uno solo).

@@ -13,7 +13,6 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import bpy  # noqa: E402
-import bmesh  # noqa: E402  (después de bpy)
 import lib_torretas as L  # noqa: E402
 from lib_torretas import Matrix, Vector, box, cone, cyl, join, math, rod, sphere, strut, torus  # noqa: E402
 
@@ -413,95 +412,177 @@ def e_basico():
 
 
 def e_generador():
-    """Zombi de apoyo con un generador de escudos en la espalda. La cúpula de energía es una parte aparte: `Escudo`."""
+    """Zombi de apoyo con un generador de escudos en la espalda (el escudo se crea en el juego).
+
+    El núcleo de energía es una parte aparte, `Nucleo`, con el pivote en su centro: sirve de punto de origen
+    para el escudo y para animarlo. Hay que soldarlo al `Torso` (WeldConstraint o Motor6D).
+    """
     K = _zb_mats()
     K.update(SHIRT=mat("Mono_Tecnico", (0.20, 0.22, 0.25)), SHIRT2=mat("Mono_Oscuro", (0.09, 0.10, 0.12)),
              PANTS=mat("Mono_Pantalon", (0.15, 0.16, 0.19)))
     metal = mat("Metal_Generador", (0.12, 0.13, 0.16), 0.8, 0.35)
     steel = mat("Acero", (0.5, 0.52, 0.56), 0.9, 0.3)
+    black = mat("Negro", (0.02, 0.02, 0.02))
+    yellow = mat("Peligro_Amarillo", (0.95, 0.7, 0.05), 0.2, 0.5)
     stripe = mat("Franja_Celeste", (0.2, 0.7, 1.0))
-    glow = mat("Energia_Celeste", (0.3, 0.85, 1.0), emission=(0.25, 0.8, 1.0), strength=6)
-    leds = [mat(f"Led_{n}", c, emission=c, strength=5) for n, c in (("Verde", (0.1, 1, 0.2)), ("Amarillo", (1, 0.8, 0.1)), ("Rojo", (1, 0.1, 0.05)))]
+    hose = mat("Manguera", (0.05, 0.05, 0.06), 0.1, 0.6)
+    leather = mat("Cuero_Bolsillo", (0.25, 0.17, 0.09))
+    glow = mat("Energia_Celeste", (0.3, 0.85, 1.0), emission=(0.2, 0.75, 1.0), strength=3)
+    white = mat("Dial", (0.92, 0.92, 0.88))
+    leds = [mat(f"Led_{n}", c, emission=c, strength=4) for n, c in (("Verde", (0.1, 1, 0.2)), ("Amarillo", (1, 0.8, 0.1)), ("Rojo", (1, 0.1, 0.05)))]
+    pc = Vector((0, 0.82, 3.1))                                                  # centro de la mochila
+    cc = pc + Vector((0, 0.42, 0))                                               # centro del núcleo
+    by = pc.y + 0.325                                                            # cara de atrás de la mochila
+
+    def corrugated(T, pts, r, m, ring_m, step=0.12):
+        """Manguera corrugada: tramos con anillitos cada `step`."""
+        for a, b in zip(pts, pts[1:]):
+            T.append(L.rod(a, b, r, m, verts=6))
+            d = b - a
+            for k in range(1, max(1, int(d.length / step))):
+                T.append(L.torus(r * 1.15, r * 0.35, a + d * (k * step / d.length), ring_m, rot=d.normalized(), seg=8, minor=3))
+
+    def coil(T, base, h, scale=1.0):
+        """Proyector tipo bobina: base, varilla, anillos de energía y punta brillante."""
+        T.append(cyl(0.12 * scale, 0.12, base + Vector((0, 0, 0.06)), steel, verts=10, bevel=0.01))
+        T.append(L.rod(base, base + Vector((0, 0, h)), 0.035 * scale, steel))
+        for k in range(3):
+            T.append(L.torus((0.13 - k * 0.025) * scale, 0.022, base + Vector((0, 0, h * (0.35 + k * 0.2))), glow, seg=12, minor=4))
+        T.append(sphere(0.08 * scale, base + Vector((0, 0, h + 0.05)), glow, subdiv=2))
+
+    def glyphs(P, part, base, u, v, segs, m):
+        """Letras con cajitas: cada seg es (u0, v0, u1, v1) en el plano (u = derecha, v = arriba)."""
+        for u0, v0, u1, v1 in segs:
+            c = base + u * ((u0 + u1) / 2) + v * ((v0 + v1) / 2)
+            size = [0.02, 0.02, 0.02]
+            for axis, ext in ((u, abs(u1 - u0) + 0.03), (v, abs(v1 - v0) + 0.03)):
+                i = max(range(3), key=lambda j: abs(axis[j]))
+                size[i] = ext
+            P[part].append(box(tuple(size), c, m, bevel=0))
 
     def gear(P):
         T = P["Torso"]
-        pc = Vector((0, 0.82, 3.1))                                              # mochila generadora
+        # --- mochila generadora
         T.append(box((1.5, 0.65, 1.6), pc, metal, bevel=0.08))
-        T.append(box((1.56, 0.7, 0.12), pc + Vector((0, 0, 0.62)), steel, bevel=0.02))
-        T.append(box((1.56, 0.7, 0.12), pc + Vector((0, 0, -0.62)), steel, bevel=0.02))
+        for z in (0.62, -0.62):                                                  # bandas de acero
+            T.append(box((1.56, 0.7, 0.12), pc + Vector((0, 0, z)), steel, bevel=0.02))
         for sx in (-1, 1):
             for sz in (-1, 1):                                                   # remaches
-                T.append(sphere(0.05, pc + Vector((sx * 0.68, 0.34, sz * 0.48)), steel, subdiv=1))
-            for k in range(4):                                                   # rejillas
-                T.append(box((0.04, 0.4, 0.06), pc + Vector((sx * 0.77, 0, -0.3 + k * 0.17)), mat("Negro", (0.02, 0.02, 0.02)), bevel=0))
-        cc = pc + Vector((0, 0.42, 0))                                           # núcleo de energía
-        T.append(cyl(0.3, 1.05, cc, glow, verts=16, bevel=0))
-        for z in (-0.25, 0.25):
-            T.append(L.torus(0.33, 0.05, cc + Vector((0, 0, z)), steel, seg=16, minor=6))
-        for z in (-0.56, 0.56):
-            T.append(cyl(0.35, 0.1, cc + Vector((0, 0, z)), steel, verts=16, bevel=0.02))
-        for k, m in enumerate(leds):                                             # luces de estado
-            T.append(box((0.1, 0.05, 0.1), pc + Vector((-0.55 + k * 0.15, 0.34, 0.45)), m, bevel=0))
-        # antena con punta de energía
-        ab = pc + Vector((0.5, 0.1, 0.8))
-        T.append(L.rod(ab, ab + Vector((0, 0.05, 1.3)), 0.04, steel))
-        T.append(cyl(0.08, 0.12, ab + Vector((0, 0.05, 0.05)), steel, verts=10, bevel=0))
-        T.append(sphere(0.11, ab + Vector((0, 0.05, 1.38)), glow, subdiv=2))
-        for z in (0.5, 0.85):
-            T.append(L.torus(0.12 - z * 0.05, 0.02, ab + Vector((0, 0.05, z)), glow, seg=10, minor=4))
-        # tirantes sobre los hombros
+                T.append(sphere(0.05, Vector((sx * 0.68, by + 0.01, pc.z + sz * 0.48)), steel, subdiv=1))
+            # celdas de energía a los costados
+            for y in (0.66, 1.0):
+                c = Vector((sx * 0.84, y, 3.0))
+                T.append(cyl(0.1, 0.62, c, glow, verts=10, bevel=0))
+                for z in (-0.33, 0.33):
+                    T.append(cyl(0.12, 0.06, c + Vector((0, 0, z)), steel, verts=10, bevel=0))
+            T.append(box((0.08, 0.6, 0.1), Vector((sx * 0.8, 0.83, 3.3)), metal, bevel=0))      # abrazadera de las celdas
+            # franjas de peligro a los costados, arriba
+            for k in range(6):
+                T.append(box((0.03, 0.105, 0.16), Vector((sx * 0.765, 0.55 + k * 0.105, 3.62)), yellow if k % 2 == 0 else black,
+                             rot=(0.5, 0, 0), bevel=0))
+        # ventilación brillante abajo
+        T.append(box((0.9, 0.42, 0.04), pc + Vector((0, 0, -0.81)), glow, bevel=0))
+        for k in range(5):
+            T.append(box((0.05, 0.46, 0.06), pc + Vector((-0.36 + k * 0.18, 0, -0.83)), black, bevel=0))
+        # manómetro con aguja
+        g = Vector((-0.55, by + 0.03, 3.5))
+        T.append(cyl(0.16, 0.06, g, steel, rot=(math.pi / 2, 0, 0), verts=16, bevel=0.01))
+        T.append(cyl(0.13, 0.03, g + Vector((0, 0.03, 0)), white, rot=(math.pi / 2, 0, 0), verts=16, bevel=0))
+        T.append(box((0.02, 0.02, 0.11), g + Vector((0.03, 0.05, 0.03)), leds[2], rot=(0, -0.7, 0), bevel=0))
+        for k in range(5):                                                       # marcas del dial
+            a = math.pi * (0.15 + k * 0.175)
+            T.append(box((0.015, 0.02, 0.035), g + Vector((-math.cos(a) * 0.1, 0.05, math.sin(a) * 0.1)), black, rot=(0, a - math.pi / 2, 0), bevel=0))
+        # luces de estado
+        for k, m in enumerate(leds):
+            T.append(box((0.09, 0.05, 0.09), Vector((0.45 + k * 0.13, by + 0.01, 3.55)), m, bevel=0))
+        T.append(box((0.42, 0.04, 0.14), Vector((0.58, by + 0.005, 3.55)), black, bevel=0))
+        # placa con remaches abajo del núcleo
+        T.append(box((0.5, 0.04, 0.3), Vector((0.55, by + 0.01, 2.75)), steel, bevel=0.01))
+        for k in range(3):
+            T.append(box((0.3, 0.05, 0.03), Vector((0.55, by + 0.02, 2.82 - k * 0.07)), black, bevel=0))
+        # manija arriba y proyectores tipo bobina
+        for sx in (-1, 1):
+            T.append(box((0.06, 0.06, 0.18), Vector((sx * 0.25, 0.62, 3.99)), steel, bevel=0))
+            coil(T, Vector((sx * 0.55, 0.95, 3.9)), 0.75)
+        T.append(box((0.56, 0.08, 0.06), Vector((0, 0.62, 4.08)), black, bevel=0.01))
+        coil(T, cc + Vector((0, 0, 0.61)), 0.55, scale=1.3)                     # bobina central sobre el núcleo
+        # --- tirantes con hebillas
         for sx in (-1, 1):
             T.append(box((0.25, 1.06, 0.06), (sx * 0.55, 0, 4.03), metal, bevel=0.01))
-            T.append(box((0.25, 0.06, 0.35), (sx * 0.55, -0.53, 3.85), metal, bevel=0.01))
-            T.append(box((0.08, 0.07, 0.08), (sx * 0.55, -0.56, 3.75), steel, bevel=0))
-        # cables al emisor del pecho
-        em = Vector((0, -0.6, 3.25))
-        for sx in (-1, 1):
-            pts = [Vector((sx * 0.72, 0.5, 3.75)), Vector((sx * 0.8, 0.1, 4.08)), Vector((sx * 0.8, -0.55, 3.85)),
-                   Vector((sx * 0.35, -0.6, 3.45)), em + Vector((sx * 0.15, 0, 0))]
-            for a, b in zip(pts, pts[1:]):
-                T.append(L.rod(a, b, 0.045, glow if sx > 0 else mat("Cable_Negro", (0.03, 0.03, 0.03)), verts=6))
+            T.append(box((0.25, 0.06, 0.45), (sx * 0.55, -0.53, 3.8), metal, bevel=0.01))
+            T.append(box((0.3, 0.07, 0.16), (sx * 0.55, -0.56, 3.62), steel, bevel=0.01))
+            T.append(box((0.18, 0.08, 0.06), (sx * 0.55, -0.57, 3.62), black, bevel=0))
+        # --- emisor del pecho con barra de carga
+        em = Vector((0, -0.6, 3.22))
         T.append(cyl(0.24, 0.1, em, steel, rot=(math.pi / 2, 0, 0), verts=16, bevel=0.02))
         T.append(cyl(0.16, 0.06, em + Vector((0, -0.05, 0)), glow, rot=(math.pi / 2, 0, 0), verts=16, bevel=0))
         T.append(L.torus(0.24, 0.03, em + Vector((0, -0.05, 0)), metal, rot=(math.pi / 2, 0, 0), seg=16, minor=4))
-        # franjas celestes en el mono (piernas y mangas)
+        T.append(box((0.46, 0.06, 0.13), em + Vector((0, 0, -0.36)), black, bevel=0.01))
+        for k, m in enumerate((glow, glow, black)):
+            T.append(box((0.12, 0.07, 0.08), em + Vector((-0.14 + k * 0.14, -0.01, -0.36)), m, bevel=0))
+        # --- mangueras corrugadas de la mochila al emisor
+        for sx in (-1, 1):
+            pts = [Vector((sx * 0.72, 0.5, 3.75)), Vector((sx * 0.8, 0.1, 4.08)), Vector((sx * 0.8, -0.55, 3.85)),
+                   Vector((sx * 0.35, -0.62, 3.45)), em + Vector((sx * 0.17, 0, 0.05))]
+            corrugated(T, pts, 0.045, hose, glow if sx > 0 else steel)
+        # --- cable enchufado en la nuca, con costura
+        nk = Vector((0, 0.36, 4.05))
+        corrugated(T, [Vector((0, 0.5, 3.92)), nk + Vector((0, 0.06, 0))], 0.04, hose, steel, step=0.08)
+        T.append(box((0.14, 0.06, 0.1), nk, steel, bevel=0.01))
+        _zb_stitches(P, "Torso", Vector((-0.2, 0.37, 4.06)), Vector((0.2, 0.37, 4.06)), (0, 1, 0), K["STITCH"], n=4, w=0.02, cross=0.08)
+        # --- bolsillos de herramientas en el cinturón
+        for sx in (-1, 1):
+            c = Vector((sx * 0.82, -0.6, 2.02))
+            T.append(box((0.32, 0.2, 0.34), c, leather, bevel=0.03))
+            T.append(box((0.34, 0.22, 0.1), c + Vector((0, 0, 0.14)), leather, rot=(0.15, 0, 0), bevel=0.02))
+            T.append(box((0.06, 0.04, 0.06), c + Vector((0, -0.12, 0.08)), steel, bevel=0))
+        T.append(L.rod(Vector((-0.75, -0.6, 2.15)), Vector((-0.72, -0.62, 2.45)), 0.03, steel))   # destornillador
+        T.append(box((0.07, 0.07, 0.12), Vector((-0.72, -0.62, 2.5)), yellow, bevel=0.01))
+        T.append(box((0.05, 0.03, 0.3), Vector((0.85, -0.62, 2.3)), steel, bevel=0))                # llave inglesa
+        T.append(box((0.14, 0.03, 0.08), Vector((0.85, -0.62, 2.47)), steel, bevel=0))
+        # --- franjas celestes en el mono (piernas y mangas)
         for nm, x in (("RightLeg", -0.5), ("LeftLeg", 0.5)):
             P[nm].append(box((1.05, 1.05, 0.1), (x, 0, 1.6), stripe, bevel=0))
         for nm, x in (("RightArm", -1.5), ("LeftArm", 1.5)):
             P[nm].append(box((1.08, 1.08, 0.08), (x, 0, 3.42), stripe, bevel=0))
-        # brazo izquierdo: mando de muñeca con pantalla (sin manos ni uñas)
-        P["LeftArm"].append(box((1.1, 1.1, 0.32), (1.5, 0, 2.3), metal, bevel=0.04))
-        P["LeftArm"].append(box((0.5, 0.05, 0.2), (1.5, -0.57, 2.3), glow, bevel=0))
+        # --- parche "G-7" en la manga derecha (texto acomodado para el brazo estirado hacia adelante)
+        pb = Vector((-2.05, 0.0, 3.68))
+        u, v = Vector((0, 0, -1)), Vector((0, -1, 0))                            # derecha / arriba con el brazo en pose
+        P["RightArm"].append(box((0.04, 0.32, 0.56), pb, K["SHIRT2"], bevel=0))
+        q = pb + Vector((-0.02, 0, 0))
+        glyphs(P, "RightArm", q, u, v, [(-0.22, 0.09, -0.12, 0.09), (-0.22, -0.09, -0.22, 0.09), (-0.22, -0.09, -0.12, -0.09),
+                                        (-0.12, -0.09, -0.12, 0.0), (-0.16, 0.0, -0.12, 0.0),            # G
+                                        (-0.05, 0.0, 0.05, 0.0),                                          # -
+                                        (0.12, 0.09, 0.22, 0.09), (0.22, -0.09, 0.22, 0.09)], stripe)     # 7
+        # --- mando de muñeca (brazo izquierdo, sin manos ni uñas)
+        A = P["LeftArm"]
+        A.append(box((1.1, 1.1, 0.32), (1.5, 0, 2.3), metal, bevel=0.04))
+        A.append(box((0.5, 0.05, 0.2), (1.5, -0.57, 2.3), glow, bevel=0))
         for k, m in enumerate(leds):
-            P["LeftArm"].append(box((0.07, 0.05, 0.07), (1.65 + 0.1 * k - 0.1, -0.57, 2.42), m, bevel=0))
-        P["LeftArm"].append(cyl(0.12, 0.08, (1.5, 0, 2.0 - 0.06), glow, verts=12, bevel=0))  # emisor en la punta
-        # auricular en la cabeza
+            A.append(box((0.07, 0.05, 0.07), (1.55 + 0.1 * k, -0.57, 2.42), m, bevel=0))
+        A.append(cyl(0.12, 0.08, (1.5, 0, 2.0 - 0.06), glow, verts=12, bevel=0))              # emisor en la punta
+        A.append(cyl(0.08, 0.08, (2.08, -0.2, 2.3), steel, rot=(0, math.pi / 2, 0), verts=10, bevel=0))   # perilla
+        A.append(box((0.04, 0.03, 0.08), (2.13, -0.2, 2.3), black, bevel=0))
+        A.append(L.rod(Vector((2.06, 0.25, 2.2)), Vector((2.06, 0.25, 2.95)), 0.025, steel))    # mini antena
+        A.append(sphere(0.05, (2.06, 0.25, 2.97), leds[2], subdiv=1))
+        # --- auricular en la cabeza
         h = ZB_HEAD + Vector((0.63, 0.05, 0.0))
         P["Head"].append(box((0.1, 0.35, 0.35), h, metal, bevel=0.03))
         P["Head"].append(box((0.04, 0.2, 0.2), h + Vector((0.06, 0, 0)), glow, bevel=0))
         P["Head"].append(L.rod(h + Vector((0.05, -0.1, -0.1)), h + Vector((0.0, -0.45, -0.35)), 0.025, metal, verts=6))
 
     objs = _zb_body(K, random.Random(11), gear)
-    # cúpula de escudo (parte aparte para prenderla/apagarla en Roblox)
-    shield = mat("Escudo_Energia", (0.35, 0.8, 1.0), rough=0.1, emission=(0.2, 0.65, 1.0), strength=1.5)
-    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=3, radius=1, location=(0, -0.45, 0))
-    dome = bpy.context.active_object
-    dome.scale = (2.9, 3.1, 5.6)
-    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-    bm = bmesh.new()
-    bm.from_mesh(dome.data)
-    bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, 0.05), plane_no=(0, 0, 1),
-                           clear_inner=True)
-    bm.to_mesh(dome.data)
-    bm.free()
-    dome.data.materials.append(shield)
-    ring = [L.torus(2.95, 0.07, (0, -0.45, 0.07), glow, rot=(0, 0, 0), seg=40, minor=6)]
-    ring[0].scale = (1, 3.15 / 2.95, 1)
-    for k in range(6):                                                           # nodos emisores en el piso
-        a = k / 6 * 2 * math.pi
-        ring.append(box((0.25, 0.25, 0.18), (math.cos(a) * 2.9, -0.45 + math.sin(a) * 3.1, 0.09), metal, rot=(0, 0, a), bevel=0.03))
-    objs.append(join([dome] + ring, "Escudo", (0, 0, 3.0)))
-    return objs, 1.3
+    # núcleo de energía: parte aparte (origen del escudo en el juego)
+    core = [cyl(0.3, 1.05, cc, glow, verts=16, bevel=0)]
+    for z in (-0.25, 0.25):
+        core.append(L.torus(0.33, 0.05, cc + Vector((0, 0, z)), steel, seg=16, minor=6))
+    for z in (-0.56, 0.56):
+        core.append(cyl(0.35, 0.1, cc + Vector((0, 0, z)), steel, verts=16, bevel=0.02))
+    for k in range(4):                                                           # jaula
+        a = k / 4 * 2 * math.pi + math.pi / 4
+        core.append(box((0.05, 0.05, 1.02), cc + Vector((math.cos(a) * 0.31, math.sin(a) * 0.31, 0)), metal, bevel=0))
+    objs.append(join(core, "Nucleo", cc))
+    return objs, 1.0
 
 
 def e_corredor():
@@ -1275,9 +1356,6 @@ def build(nm):
             o.location.z += 1.0
     out = os.path.join(HERE, nm)
     L.export(out, nm, objs)
-    sh = bpy.data.materials.get("Escudo_Energia")                              # cúpula semitransparente solo en la vista
-    if sh:
-        sh.node_tree.nodes["Principled BSDF"].inputs["Alpha"].default_value = 0.1
     if not os.environ.get("NO_RENDER"):
         L.render(out, target=(0, -0.5 * s, 2.6 * s), dist=0.85 * s)
     print("LISTO", nm)
