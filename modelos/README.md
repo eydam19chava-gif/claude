@@ -4,7 +4,7 @@ Torretas low-poly sci-fi, cada una con su base, su forma y su color de neón.
 Todas apuntan hacia **+X** y están separadas en partes para poder animarlas en Roblox.
 
 ## Si en Roblox se ven grises: carpeta `con_color/`
-Si al importar el `.glb` u `.obj` el modelo queda gris (Roblox no tomó la textura de paleta), usá los de `con_color/`: cada parte viene separada en una pieza por color, con el color en el nombre (`Torso__1A6BFF`, y `_N` si brilla). Importalos y pegá `con_color/pintar_colores.lua` en **View → Command Bar**: pinta cada pieza con su color y pone Neon a las que brillan. Sirve igual con `.glb` o `.obj`, no necesita ninguna imagen. Se generan con `python exportar_con_color.py <modelo> ...`.
+Si al importar el `.glb` u `.obj` el modelo queda gris (Roblox no tomó la textura de paleta), usá los de `con_color/`: cada parte viene separada en una pieza por color, con el color en el nombre (`Torso__1A6BFF`, y `_N` si brilla). Importalos (en la vista previa del importador se ven grises, es normal; en el árbol tienen que aparecer muchas piezas `Parte__RRGGBB`, no una sola "default") y después pegá `con_color/pintar_colores.lua` en **View → Command Bar**: pinta cada pieza con su color y pone Neon a las que brillan. Sirve igual con `.glb` o `.obj`, no necesita ninguna imagen. Se generan con `python exportar_con_color.py <modelo> ...`.
 
 ## Para Roblox: carpeta `roblox/`
 **Todos los modelos están juntos en `roblox/`**: torretas, puestos, enemigos, jefes, el Inferno Zombie y el mapa (completo y por partes). Cada modelo nuevo se copia ahí automáticamente.

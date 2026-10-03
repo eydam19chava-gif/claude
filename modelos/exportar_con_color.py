@@ -74,8 +74,18 @@ def export(name):
     path = os.path.join(OUT, name)
     bpy.ops.object.select_all(action="DESELECT")
     bpy.ops.export_scene.gltf(filepath=path + ".glb", export_format="GLB")
+    # export_object_groups: cada pieza sale como "g Nombre"; Roblox separa las mallas por grupo (sin esto junta
+    # todo en una sola malla "default" y se pierden los nombres con el color)
     bpy.ops.wm.obj_export(filepath=path + ".obj", export_materials=True, path_mode="STRIP",
-                          forward_axis="NEGATIVE_Z", up_axis="Y")
+                          forward_axis="NEGATIVE_Z", up_axis="Y", export_object_groups=True)
+    lines = open(path + ".obj").read().split("\n")                           # "g X_X" (objeto_malla) -> "g X"
+    for i, ln in enumerate(lines):
+        if ln.startswith("g "):
+            g = ln[2:]
+            half = (len(g) - 1) // 2
+            if len(g) % 2 == 1 and g[:half] == g[half + 1:]:
+                lines[i] = "g " + g[:half]
+    open(path + ".obj", "w").write("\n".join(lines))
     print(f"LISTO {name}: {len(objs)} piezas, {L.count_tris(objs)} triángulos")
 
 
