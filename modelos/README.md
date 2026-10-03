@@ -131,7 +131,7 @@ Modelos sueltos para poner donde quieras. Todos miran hacia **-Y** (el jugador s
 El script `puestos/puestos.py` los genera. Para regenerar uno solo: `python puestos.py puesto_tienda`.
 
 # Enemigos (`enemigos/`)
-38 enemigos estilo bloque (tipo Roblox R6), sin manos (brazos lisos) y **sin uñas ni garras** en ningún modelo. Cada uno viene separado en partes con el pivote en la articulación, listo para animar con `Motor6D`:
+39 enemigos estilo bloque (tipo Roblox R6), sin manos (brazos lisos) y **sin uñas ni garras** en ningún modelo. Cada uno viene separado en partes con el pivote en la articulación, listo para animar con `Motor6D`:
 `Head` (cuello), `Torso`, `LeftArm` / `RightArm` (hombros), `LeftLeg` / `RightLeg` (caderas). Miran hacia **-Y**; los pies están en el piso.
 
 **Comunes:** `zombi_basico` (R6 clásico **sin cara**, descalzo y muy detallado: cerebro a la vista, camisa rota con costillas y columna, vendas, mordidas, parche, barro y grillete oxidado), `zombi_corredor` (rápido), `zombi_tanque` (mucha vida), `zombi_escudo` (bloquea de frente), `zombi_minero`, `zombi_helado`, `zombi_esqueleto`, `zombi_boxeador`, `zombi_blindado` (bandas de chapa).
@@ -144,7 +144,7 @@ El script `puestos/puestos.py` los genera. Para regenerar uno solo: `python pues
 
 **Con armadura por nivel:** `zombi_armadura_bronce`, `_hierro`, `_oro`, `_diamante`, `_obsidiana` (más armadura = más vida).
 
-**Jefes:** `minijefe_bruto`, `lich` (calavera y bastón), `jefe_rey_zombi`, `jefe_1x1x1x1` (corona de dominó, costillas, capa roja y espadas de fuego verde), `jefe_john_doe` (brazo de púa corrupta, el otro brazo con la punta corrupta sin garras, y código binario rojo), `jefe_brute` (cadenas, candado y esposas con pinchos).
+**Jefes:** `jefe_comandante_escudo` (gigante: gorra de oficial, peto con hexágono y medallas, hombreras con púas, generador enorme con 3 núcleos y 4 bobinas, estandarte, escudo hexagonal en el brazo izquierdo y cañón emisor en el derecho; los escudos de energía se crean en el juego), `minijefe_bruto`, `lich` (calavera y bastón), `jefe_rey_zombi`, `jefe_1x1x1x1` (corona de dominó, costillas, capa roja y espadas de fuego verde), `jefe_john_doe` (brazo de púa corrupta, el otro brazo con la punta corrupta sin garras, y código binario rojo), `jefe_brute` (cadenas, candado y esposas con pinchos).
 
 **`zombi_generador` y su escudo:** el modelo **no trae escudo**, se crea en el juego. Tiene una parte aparte, `Nucleo` (el cilindro de energía de la mochila), con el pivote en su centro: soldala al `Torso` con un `WeldConstraint` y usala como punto de origen del escudo (por ejemplo, una esfera con `Material = ForceField` centrada en `Nucleo.Position`) y para animar el brillo.
 
