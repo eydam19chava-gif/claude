@@ -5,7 +5,7 @@ Todas apuntan hacia **+X** y están separadas en partes para poder animarlas en 
 
 ## Para Roblox: carpeta `roblox/`
 **Todos los modelos están juntos en `roblox/`**: torretas, puestos, enemigos, jefes, el Inferno Zombie y el mapa (completo y por partes). Cada modelo nuevo se copia ahí automáticamente.
-Para bajarlos todos de una vez: **`todos_los_modelos.zip`** (los mismos `.glb` más `arreglar_modelos.lua`).
+Para bajarlos todos de una vez: **`todos_los_modelos.zip`**. Trae `glb/` (un archivo por modelo, con color), `obj/` (una carpeta por modelo con su `.obj`, `.mtl` y la imagen de color) y `arreglar_modelos.lua`.
 
 Tiene **un solo archivo `.glb` por torreta**, con los colores incluidos.
 1. En Roblox Studio: **Home → Import 3D** (o **Avatar → Import 3D**, según la versión).
