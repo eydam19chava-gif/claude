@@ -196,7 +196,7 @@ def _zb_stitches(P, part, a, b, normal, m, n=5, w=0.03, cross=0.18):
 
 
 # ------------------------------------------------------------------ partes
-def _zb_torso(P, K, rng):
+def _zb_torso(P, K, rng, chest=True):
     T = "Torso"
     P[T].append(box((2, 1, 2), (0, 0, 3), K["SHIRT"], bevel=0.03))
     P[T].append(box((0.7, 0.7, 0.12), (0, 0, 4.03), K["SKIN"], bevel=0.02))                     # cuello
@@ -233,8 +233,8 @@ def _zb_torso(P, K, rng):
         _zb_front(P, T, (0.09, ln), x, hc.z - 0.38 - ln / 2, -0.51, K["BLOOD"])
         P[T].append(sphere(0.07, (x, -0.54, hc.z - 0.38 - ln), K["BLOOD"], subdiv=1, scale=(1, 0.5, 1.2)))
 
-    # zarpazo en el pecho izquierdo (lado -X es su derecha)
-    for k in range(3):
+    # zarpazo en el pecho izquierdo (lado -X es su derecha). chest=False deja libre ese lado para un emblema
+    for k in range(3 if chest else 0):
         _zb_front(P, T, (0.07, 0.75), -0.75 + k * 0.17, 3.45 - k * 0.03, -0.5, K["FLESH"], rot=0.55)
         _zb_front(P, T, (0.03, 0.6), -0.75 + k * 0.17, 3.45 - k * 0.03, -0.52, K["BLOOD"], rot=0.55)
     # manchas de sangre seca
@@ -242,9 +242,10 @@ def _zb_torso(P, K, rng):
         _zb_front(P, T, (rng.uniform(0.12, 0.3), rng.uniform(0.1, 0.25)), rng.uniform(-0.85, -0.1), rng.uniform(2.4, 3.1), -0.5,
               K["BLOOD2"], rot=rng.uniform(0, 3))
     # bolsillo roto en el pecho derecho (lado -X)
-    _zb_front(P, T, (0.42, 0.42), -0.5, 3.55, -0.5, K["SHIRT2"])
-    P[T].append(box((0.44, 0.05, 0.06), (-0.5, -0.53, 3.75), K["SHIRT"], bevel=0))
-    _zb_vtri(P, T, -0.35, 3.3, -0.53, 0.1, K["SHIRT2"])                                # esquina colgando
+    if chest:
+        _zb_front(P, T, (0.42, 0.42), -0.5, 3.55, -0.5, K["SHIRT2"])
+        P[T].append(box((0.44, 0.05, 0.06), (-0.5, -0.53, 3.75), K["SHIRT"], bevel=0))
+        _zb_vtri(P, T, -0.35, 3.3, -0.53, 0.1, K["SHIRT2"])                            # esquina colgando
     for _ in range(4):                                                            # barro
         _zb_front(P, T, (rng.uniform(0.15, 0.3), rng.uniform(0.08, 0.15)), rng.uniform(-0.9, 0.9), rng.uniform(2.3, 2.6), -0.5,
               K["DIRT"], rot=rng.uniform(-0.3, 0.3))
@@ -387,10 +388,18 @@ def _zb_leg(P, K, rng, name, sx):
               rng.choice((-0.5, 0.5)), K["BLOOD2"], rot=rng.uniform(0, 3))
 
 
-def _zb_body(K, rng, extra=None):
-    """Cuerpo del zombi básico armado y en pose. `extra(P)` agrega accesorios en pose de reposo antes de unir."""
+# pose de zombi: brazos estirados hacia adelante (uno un poco más bajo) y cabeza ladeada
+ZB_POSE = {"RightArm": Matrix.Rotation(-math.radians(84), 4, "X"), "LeftArm": Matrix.Rotation(-math.radians(95), 4, "X"),
+           "Head": Matrix.Rotation(math.radians(9), 4, "Y") @ Matrix.Rotation(math.radians(6), 4, "X")}
+
+
+def _zb_body(K, rng, extra=None, pose=None, chest=True):
+    """Cuerpo del zombi básico armado y en pose. `extra(P)` agrega accesorios en pose de reposo antes de unir.
+
+    `pose` = {parte: matriz de rotación alrededor de su articulación} (por defecto ZB_POSE).
+    """
     P = {k: [] for k in ZB_PIV}
-    _zb_torso(P, K, rng)
+    _zb_torso(P, K, rng, chest)
     _zb_head(P, K, rng)
     _zb_arm(P, K, rng, "RightArm", -1)
     _zb_arm(P, K, rng, "LeftArm", 1)
@@ -399,10 +408,8 @@ def _zb_body(K, rng, extra=None):
     if extra:
         extra(P)
     objs = {k: join(v, k, ZB_PIV[k]) for k, v in P.items()}
-    # pose de zombi: brazos estirados hacia adelante (uno un poco más bajo) y cabeza ladeada
-    L.transform([objs["RightArm"]], Matrix.Rotation(-math.radians(84), 4, "X"), ZB_PIV["RightArm"])
-    L.transform([objs["LeftArm"]], Matrix.Rotation(-math.radians(95), 4, "X"), ZB_PIV["LeftArm"])
-    L.transform([objs["Head"]], Matrix.Rotation(math.radians(9), 4, "Y") @ Matrix.Rotation(math.radians(6), 4, "X"), ZB_PIV["Head"])
+    for part, m in (pose or ZB_POSE).items():
+        L.transform([objs[part]], m, ZB_PIV[part])
     return list(objs.values())
 
 
@@ -581,6 +588,125 @@ def e_generador():
         a = k / 4 * 2 * math.pi + math.pi / 4
         core.append(box((0.05, 0.05, 1.02), cc + Vector((math.cos(a) * 0.31, math.sin(a) * 0.31, 0)), metal, bevel=0))
     objs.append(join(core, "Nucleo", cc))
+    return objs, 1.0
+
+
+def e_veloz():
+    """Zombi veloz: corre como "Naruto" (brazos hacia atrás), con turbina en la espalda y propulsores en las piernas.
+
+    La turbina es una parte aparte, `Turbina`, con el pivote en su eje: se la puede hacer girar en el juego
+    (alrededor de su eje Y local). Hay que soldarla al `Torso` (WeldConstraint o Motor6D).
+    """
+    K = _zb_mats()
+    K.update(SHIRT=mat("Musculosa_Naranja", (0.95, 0.38, 0.04)), SHIRT2=mat("Negro_Deportivo", (0.04, 0.04, 0.05)),
+             PANTS=mat("Jogger_Negro", (0.06, 0.06, 0.07)))
+    metal = mat("Metal_Turbo", (0.14, 0.14, 0.17), 0.8, 0.35)
+    steel = mat("Acero", (0.5, 0.52, 0.56), 0.9, 0.3)
+    black = mat("Negro", (0.02, 0.02, 0.02))
+    orange = mat("Naranja", (1.0, 0.45, 0.05))
+    yellow = mat("Rayo_Amarillo", (1.0, 0.82, 0.05), 0.1, 0.4)
+    red = mat("Rojo_Turbo", (0.75, 0.05, 0.05), 0.3, 0.4)
+    white = mat("Dial", (0.92, 0.92, 0.88))
+    fire = mat("Fuego_Turbo", (1.0, 0.5, 0.1), emission=(1.0, 0.45, 0.05), strength=4)
+    tc = Vector((0, 0.78, 3.25))                                                  # centro de la turbina (eje Y)
+
+    def bolt(T, part, c, h, y, m, outline=None):
+        """Rayo en zigzag plano sobre una cara que mira a -Y (y < 0) o +Y (y > 0)."""
+        s = h / 0.6
+        pts = [Vector((0.2, 0, 0.3)), Vector((-0.1, 0, 0.0)), Vector((0.12, 0, 0.0)), Vector((-0.2, 0, -0.3))]
+        sy = 1 if y > 0 else -1
+        for mm, w, dy in ((outline, 0.17, 0.0), (m, 0.1, 0.015)) if outline else ((m, 0.1, 0.0),):
+            for a, b in zip(pts, pts[1:]):
+                pa = c + Vector((a.x * s, y + sy * (ZB_E + dy), a.z * s))
+                pb = c + Vector((b.x * s, y + sy * (ZB_E + dy), b.z * s))
+                T[part].append(strut(pa, pb + (pb - pa).normalized() * 0.03, 0.03, w * s, mm, bevel=0))
+
+    def gear(P):
+        T = P["Torso"]
+        # --- montura de la turbina en la espalda, con tirantes
+        T.append(box((1.3, 0.25, 1.3), Vector((0, 0.62, 3.2)), metal, bevel=0.06))
+        T.append(cyl(0.62, 0.3, tc, metal, rot=(math.pi / 2, 0, 0), verts=24, bevel=0.03))          # carcasa
+        T.append(L.torus(0.6, 0.06, tc + Vector((0, 0.16, 0)), orange, rot=(math.pi / 2, 0, 0), seg=24, minor=6))
+        for k in range(4):                                                       # rejilla de protección
+            a = k / 4 * math.pi
+            T.append(box((1.15, 0.04, 0.04), tc + Vector((0, 0.2, 0)), steel, rot=(0, a, 0), bevel=0))
+        for sx in (-1, 1):
+            T.append(box((0.25, 1.06, 0.06), (sx * 0.55, 0, 4.03), black, bevel=0.01))
+            T.append(box((0.25, 0.06, 0.45), (sx * 0.55, -0.53, 3.8), black, bevel=0.01))
+            T.append(box((0.3, 0.07, 0.14), (sx * 0.55, -0.56, 3.6), steel, bevel=0.01))
+            # propulsores a los costados de la turbina, apuntando para abajo y atrás
+            top = Vector((sx * 0.78, 0.75, 3.45))
+            bot = top + Vector((sx * 0.12, 0.35, -1.0))
+            d = (bot - top).normalized()
+            T.append(L.rod(top, bot, 0.17, metal, verts=12))
+            T.append(cyl(0.2, 0.08, top, steel, rot=d, verts=12, bevel=0))
+            for t in (0.3, 0.6):
+                T.append(L.torus(0.18, 0.03, top.lerp(bot, t), red, rot=d, seg=12, minor=4))
+            T.append(cyl(0.2, 0.25, bot + d * 0.1, steel, rot=d, verts=12, bevel=0, r2=0.25))      # tobera
+            T.append(cyl(0.2, 0.03, bot + d * 0.23, fire, rot=d, verts=12, bevel=0))
+            T.append(L.rod(tc + Vector((sx * 0.45, 0.05, 0.35)), top + Vector((0, 0, 0.05)), 0.035, black, verts=6))  # caño
+            bolt(P, "Torso", Vector((sx * 0.45, 0, 2.75)), 0.4, 0.75, yellow)    # rayitos en la montura
+        # --- emblema de rayo en el pecho
+        bolt(P, "Torso", Vector((-0.45, 0, 3.15)), 1.0, -0.5, yellow, outline=black)
+        # franjas negras a los costados de la musculosa
+        for sx in (-1, 1):
+            _zb_side(P, "Torso", (0.14, 1.6), sx * 1.0, -0.3, 3.05, black)
+        # --- cabeza: vincha con tiras al viento
+        hb = ZB_HEAD + Vector((0, 0, 0.3))
+        P["Head"].append(cyl(0.645, 0.16, hb, red, verts=24, bevel=0))
+        for sx in (-1, 1):
+            a = hb + Vector((sx * 0.08, 0.6, -0.02))
+            P["Head"].append(strut(a, a + Vector((sx * 0.25, 0.75, -0.25)), 0.03, 0.13, red, bevel=0))
+            P["Head"].append(strut(a + Vector((sx * 0.25, 0.75, -0.25)), a + Vector((sx * 0.35, 1.25, -0.2)), 0.03, 0.11, red, bevel=0))
+        P["Head"].append(box((0.18, 0.06, 0.18), hb + Vector((0, 0.66, 0)), red, bevel=0.02))      # nudo
+        # --- brazos: franja naranja en la manga; velocímetro en la muñeca izquierda
+        for nm, sx in (("RightArm", -1), ("LeftArm", 1)):
+            P[nm].append(box((1.08, 1.08, 0.08), (sx * 1.5, 0, 3.42), black, bevel=0))
+            _zb_side(P, nm, (0.12, 0.6), sx * 2.03, 0, 3.66, orange)
+        A = P["LeftArm"]
+        A.append(box((1.08, 1.08, 0.32), (1.5, 0, 2.35), black, bevel=0.04))
+        g = Vector((2.06, 0, 2.35))
+        A.append(cyl(0.24, 0.06, g, steel, rot=(0, math.pi / 2, 0), verts=20, bevel=0.01))
+        A.append(cyl(0.2, 0.03, g + Vector((0.03, 0, 0)), white, rot=(0, math.pi / 2, 0), verts=20, bevel=0))
+        for k in range(7):                                                       # marcas, las últimas en rojo
+            a = math.radians(200 - k * 37)
+            A.append(box((0.02, 0.025, 0.05), g + Vector((0.05, math.cos(a) * 0.15, math.sin(a) * 0.15)), red if k >= 5 else black,
+                         rot=(a - math.pi / 2, 0, 0), bevel=0))
+        a = math.radians(-20)                                                    # aguja a fondo
+        A.append(strut(g + Vector((0.06, 0, 0)), g + Vector((0.06, math.cos(a) * 0.16, math.sin(a) * 0.16)), 0.02, 0.025, red, bevel=0))
+        A.append(cyl(0.03, 0.03, g + Vector((0.07, 0, 0)), black, rot=(0, math.pi / 2, 0), verts=8, bevel=0))
+        # --- piernas: franjas laterales y propulsores en las pantorrillas (pies descalzos)
+        for nm, sx in (("RightLeg", -1), ("LeftLeg", 1)):
+            G = P[nm]
+            x = sx * 0.5
+            _zb_side(P, nm, (0.14, 1.1), sx * 1.0, 0, 1.4, orange)
+            for z in (1.0, 0.62):                                                # correas
+                G.append(box((1.06, 1.06, 0.08), (x, 0, z), black, bevel=0))
+            G.append(box((0.6, 0.3, 0.62), (x, 0.66, 0.85), metal, bevel=0.05))  # cuerpo del propulsor
+            G.append(box((0.5, 0.05, 0.12), (x, 0.82, 1.0), orange, bevel=0))
+            bolt(P, nm, Vector((x, 0, 0.8)), 0.25, 0.81, yellow)
+            n = Vector((x, 0.72, 0.48))
+            G.append(cyl(0.16, 0.2, n, steel, verts=12, bevel=0, r2=0.21))       # tobera para abajo
+            G.append(cyl(0.18, 0.03, n + Vector((0, 0, -0.11)), fire, verts=12, bevel=0))
+            for sy in (-1, 1):                                                   # aletas
+                G.append(strut(Vector((x + sx * 0.3, 0.55, 1.1)), Vector((x + sx * 0.45, 0.95, 0.75)), 0.04, 0.2, red, bevel=0))
+
+    pose = {"RightArm": Matrix.Rotation(math.radians(62), 4, "X") @ Matrix.Rotation(math.radians(-8), 4, "Y"),
+            "LeftArm": Matrix.Rotation(math.radians(62), 4, "X") @ Matrix.Rotation(math.radians(8), 4, "Y"),
+            "RightLeg": Matrix.Rotation(-math.radians(28), 4, "X"), "LeftLeg": Matrix.Rotation(math.radians(28), 4, "X"),
+            "Head": Matrix.Rotation(-math.radians(10), 4, "X")}
+    objs = _zb_body(K, random.Random(23), gear, pose=pose, chest=False)
+    # turbina: parte aparte para hacerla girar
+    fan = [cyl(0.12, 0.34, tc, fire, rot=(math.pi / 2, 0, 0), verts=12, bevel=0),
+           cyl(0.18, 0.3, tc, steel, rot=(math.pi / 2, 0, 0), verts=12, bevel=0.02)]
+    for k in range(8):
+        a = k / 8 * 2 * math.pi
+        fan.append(box((0.42, 0.04, 0.14), tc + Vector((math.cos(a) * 0.36, 0.02, math.sin(a) * 0.36)), steel,
+                       rot=(0.35, -a, 0), bevel=0))
+    objs.append(join(fan, "Turbina", tc))
+    low = min((o.matrix_world @ v.co).z for o in objs for v in o.data.vertices)   # apoyar los pies justo en el piso
+    for o in objs:
+        o.location.z -= low
     return objs, 1.0
 
 
@@ -1315,6 +1441,7 @@ def armored(tier, s=1.1, weapon="espada"):
 BUILDERS = {
     "zombi_basico": e_basico,
     "zombi_generador": e_generador,
+    "zombi_veloz": e_veloz,
     "zombi_corredor": e_corredor,
     "zombi_tanque": e_tanque,
     "zombi_escudo": e_escudo,
