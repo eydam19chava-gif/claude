@@ -4,6 +4,8 @@ Torretas low-poly sci-fi, cada una con su base, su forma y su color de neón.
 Todas apuntan hacia **+X** y están separadas en partes para poder animarlas en Roblox.
 
 ## Para Roblox: carpeta `roblox/`
+**Todos los modelos están juntos en `roblox/`**: torretas, puestos, enemigos, jefes, el Inferno Zombie y el mapa (completo y por partes). Cada modelo nuevo se copia ahí automáticamente.
+
 Tiene **un solo archivo `.glb` por torreta**, con los colores incluidos.
 1. En Roblox Studio: **Home → Import 3D** (o **Avatar → Import 3D**, según la versión).
 2. Elegí el `.glb` de la torreta.
