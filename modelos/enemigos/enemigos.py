@@ -893,6 +893,112 @@ def e_explosivo():
     return _zb_body(K, random.Random(41), gear, chest=False), 1.0
 
 
+def e_excavador():
+    """Zombi excavador: va bajo tierra. Casco con lámpara, taladros en los brazos, motor y pala en la espalda, tierra encima."""
+    K = _zb_mats()
+    K.update(SHIRT=mat("Camisa_Trabajo", (0.32, 0.26, 0.18)), SHIRT2=mat("Trabajo_Oscuro", (0.18, 0.14, 0.09)),
+             PANTS=mat("Pantalon_Tierra", (0.2, 0.16, 0.12)))
+    helmet = mat("Casco_Naranja", (0.95, 0.5, 0.05), 0.2, 0.4)
+    metal = mat("Metal_Taladro", (0.35, 0.36, 0.4), 0.85, 0.3)
+    dark = mat("Metal_Oscuro", (0.1, 0.1, 0.12), 0.7, 0.45)
+    engine = mat("Motor_Amarillo", (0.85, 0.65, 0.08), 0.4, 0.4)
+    wood = mat("Madera", (0.35, 0.2, 0.1))
+    dirt = mat("Tierra", (0.26, 0.17, 0.08))
+    clod = mat("Terron", (0.33, 0.22, 0.1))
+    rock = mat("Piedra", (0.42, 0.42, 0.4))
+    root = mat("Raiz", (0.4, 0.28, 0.16))
+    reflect = mat("Franja_Reflectiva", (0.85, 0.9, 0.2), 0.1, 0.3)
+    lamp = mat("Lampara", (1, 0.95, 0.7), emission=(1, 0.9, 0.6), strength=8)
+    soot = mat("Hollin", (0.08, 0.07, 0.07))
+    hose = mat("Manguera", (0.05, 0.05, 0.06), 0.1, 0.6)
+    rng = random.Random(53)
+
+    def clods(T, c, spread, n, up=True):
+        """Terrones y piedritas amontonados alrededor de c."""
+        for _ in range(n):
+            p = c + Vector((rng.uniform(-spread, spread), rng.uniform(-spread, spread), rng.uniform(0, 0.08) if up else 0))
+            sz = rng.uniform(0.1, 0.22)
+            T.append(box((sz, sz * rng.uniform(0.7, 1.2), sz * 0.7), p, rock if rng.random() < 0.25 else clod,
+                         rot=(rng.uniform(-0.4, 0.4), rng.uniform(-0.4, 0.4), rng.uniform(0, 3)), bevel=0.02))
+
+    def drill(A, tip):
+        """Taladro cónico con espiral, apuntando hacia -Z desde `tip` (punta del brazo en reposo)."""
+        A.append(cyl(0.48, 0.22, tip + Vector((0, 0, -0.08)), dark, verts=16, bevel=0.03))
+        A.append(cyl(0.36, 0.12, tip + Vector((0, 0, -0.24)), metal, verts=16, bevel=0.01))
+        A.append(cone(0.36, 1.05, tip + Vector((0, 0, -0.82)), metal, rot=(math.pi, 0, 0), verts=16))
+        for k in range(6):                                                      # espiral
+            t = k / 6
+            A.append(L.torus(0.34 * (1 - t) + 0.03, 0.035, tip + Vector((0, 0, -0.38 - t * 0.9)), dark,
+                             rot=Vector((0.25, 0.1 * (k % 2), 1)).normalized(), seg=12, minor=4))
+        clods(A, tip + Vector((0, 0, -0.3)), 0.3, 3, up=False)
+
+    def gear(P):
+        T = P["Torso"]
+        # --- casco de obra con lámpara y tierra encima (tapa el cerebro)
+        hc = ZB_HEAD + Vector((0, 0, 0.42))
+        H = P["Head"]
+        H.append(sphere(0.72, hc, helmet, subdiv=3, scale=(1, 1, 0.6)))
+        H.append(cyl(0.84, 0.06, hc + Vector((0, 0, -0.08)), helmet, verts=24, bevel=0.01))
+        H.append(box((0.12, 1.2, 0.12), hc + Vector((0, 0, 0.4)), helmet, bevel=0.03))                   # cresta
+        H.append(cyl(0.17, 0.16, hc + Vector((0, -0.7, 0.12)), dark, rot=(math.pi / 2, 0, 0), verts=14, bevel=0.01))
+        H.append(cyl(0.13, 0.04, hc + Vector((0, -0.79, 0.12)), lamp, rot=(math.pi / 2, 0, 0), verts=14, bevel=0))
+        H.append(L.rod(hc + Vector((0.12, -0.6, 0.0)), hc + Vector((0.45, 0.5, -0.25)), 0.025, hose, verts=6))
+        clods(H, hc + Vector((0.15, 0.15, 0.4)), 0.25, 4)
+        # --- tiradores y franjas reflectivas
+        for sx in (-1, 1):
+            T.append(box((0.2, 0.06, 1.8), (sx * 0.5, -0.53, 3.05), K["SHIRT2"], bevel=0))
+            T.append(box((0.22, 0.07, 0.1), (sx * 0.5, -0.56, 3.75), metal, bevel=0))
+        T.append(box((2.05, 1.05, 0.18), (0, 0, 3.3), reflect, bevel=0))
+        # --- motor con escape y pala en la espalda
+        ec = Vector((0, 0.78, 3.15))
+        T.append(box((1.1, 0.5, 0.95), ec, engine, bevel=0.06))
+        for k in range(5):                                                      # aletas de enfriamiento
+            T.append(box((0.9, 0.06, 0.05), ec + Vector((0, 0.27, -0.3 + k * 0.15)), dark, bevel=0))
+        ex0 = ec + Vector((0.38, 0.12, 0.45))
+        T.append(L.rod(ex0, ex0 + Vector((0, 0.05, 0.8)), 0.08, dark, verts=10))
+        T.append(cyl(0.11, 0.1, ex0 + Vector((0, 0.05, 0.85)), metal, verts=10, bevel=0))
+        T.append(cyl(0.07, 0.04, ex0 + Vector((0, 0.05, 0.91)), soot, verts=10, bevel=0))
+        _zb_front(P, "Torso", (0.3, 0.25), 0.38, ec.z + 0.25, ec.y + 0.25, soot)
+        a, b = Vector((-0.75, 1.1, 2.35)), Vector((0.55, 1.1, 4.6))             # pala cruzada
+        T.append(strut(a, b, 0.09, 0.09, wood, bevel=0))
+        T.append(box((0.3, 0.08, 0.1), b + (b - a).normalized() * 0.05, dark, rot=(0, -math.atan2(b.z - a.z, b.x - a.x), 0), bevel=0))
+        T.append(box((0.5, 0.06, 0.6), a + Vector((-0.12, 0, -0.25)), metal, rot=(0, 0.52, 0), bevel=0.02))
+        for sx in (-1, 1):                                                      # mangueras a los taladros
+            T.append(L.rod(ec + Vector((sx * 0.5, 0, 0.3)), Vector((sx * 0.9, 0.3, 3.9)), 0.05, hose, verts=6))
+            T.append(box((0.22, 1.06, 0.06), (sx * 0.55, 0, 4.03), K["SHIRT2"], bevel=0.01))
+        # --- tierra por todos lados
+        for sx in (-1, 1):
+            clods(T, Vector((sx * 0.6, 0, 4.03)), 0.25, 4)                      # hombros
+        for _ in range(10):
+            _zb_front(P, "Torso", (rng.uniform(0.15, 0.35), rng.uniform(0.1, 0.25)), rng.uniform(-0.9, 0.9), rng.uniform(2.3, 3.9),
+                      rng.choice((-0.5, 0.5)), dirt, rot=rng.uniform(0, 3))
+        for k in range(4):                                                      # raíces colgando del cinturón
+            p = Vector((-0.8 + k * 0.5, -0.53, 2.05))
+            q = p + Vector((rng.uniform(-0.15, 0.15), -0.03, -rng.uniform(0.35, 0.6)))
+            T.append(strut(p, q, 0.04, 0.04, root, bevel=0))
+            T.append(strut(q, q + Vector((rng.uniform(-0.15, 0.15), 0, -0.2)), 0.03, 0.03, root, bevel=0))
+        # --- taladros en las puntas de los brazos (sin manos ni uñas)
+        for nm, sx in (("RightArm", -1), ("LeftArm", 1)):
+            x = sx * 1.5
+            drill(P[nm], Vector((x, 0, 2.0)))
+            P[nm].append(L.rod(Vector((x + sx * 0.52, 0.2, 3.3)), Vector((x + sx * 0.5, 0.2, 2.1)), 0.05, hose, verts=6))
+            clods(P[nm], Vector((x, 0, 4.0)), 0.3, 3)
+            for _ in range(3):
+                _zb_side(P, nm, (rng.uniform(0.2, 0.4), rng.uniform(0.15, 0.3)), sx * 2.0, rng.uniform(-0.3, 0.3), rng.uniform(2.2, 3.2), dirt,
+                         rot=rng.uniform(0, 1))
+        # --- piernas enterradas hasta las rodillas de tierra
+        for nm, sx in (("RightLeg", -1), ("LeftLeg", 1)):
+            for _ in range(4):
+                _zb_side(P, nm, (rng.uniform(0.25, 0.45), rng.uniform(0.2, 0.4)), sx * 1.0, rng.uniform(-0.3, 0.3), rng.uniform(0.3, 1.0), dirt,
+                         rot=rng.uniform(0, 1))
+            for y in (-0.5, 0.5):
+                for _ in range(2):
+                    _zb_front(P, nm, (rng.uniform(0.2, 0.4), rng.uniform(0.15, 0.3)), sx * 0.5 + rng.uniform(-0.25, 0.25), rng.uniform(0.3, 0.9), y,
+                              dirt, rot=rng.uniform(0, 3))
+
+    return _zb_body(K, random.Random(53), gear), 1.0
+
+
 def e_corredor():
     K = base_mats()
     skin = mat("Piel_Corredor", (0.45, 0.6, 0.3))
@@ -1627,6 +1733,7 @@ BUILDERS = {
     "zombi_veloz": e_veloz,
     "zombi_divisor": e_divisor,
     "zombi_explosivo": e_explosivo,
+    "zombi_excavador": e_excavador,
     "zombi_corredor": e_corredor,
     "zombi_tanque": e_tanque,
     "zombi_escudo": e_escudo,
