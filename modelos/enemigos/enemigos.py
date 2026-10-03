@@ -13,6 +13,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import bpy  # noqa: E402
+import bmesh  # noqa: E402  (después de bpy)
 import lib_torretas as L  # noqa: E402
 from lib_torretas import Matrix, Vector, box, cone, cyl, join, math, rod, sphere, strut, torus  # noqa: E402
 
@@ -387,10 +388,8 @@ def _zb_leg(P, K, rng, name, sx):
               rng.choice((-0.5, 0.5)), K["BLOOD2"], rot=rng.uniform(0, 3))
 
 
-def e_basico():
-    """Zombi básico: R6 clásico, sin cara, descalzo y sin uñas, con mucho detalle."""
-    rng = random.Random(7)
-    K = _zb_mats()
+def _zb_body(K, rng, extra=None):
+    """Cuerpo del zombi básico armado y en pose. `extra(P)` agrega accesorios en pose de reposo antes de unir."""
     P = {k: [] for k in ZB_PIV}
     _zb_torso(P, K, rng)
     _zb_head(P, K, rng)
@@ -398,13 +397,111 @@ def e_basico():
     _zb_arm(P, K, rng, "LeftArm", 1)
     _zb_leg(P, K, rng, "RightLeg", -1)
     _zb_leg(P, K, rng, "LeftLeg", 1)
+    if extra:
+        extra(P)
     objs = {k: join(v, k, ZB_PIV[k]) for k, v in P.items()}
     # pose de zombi: brazos estirados hacia adelante (uno un poco más bajo) y cabeza ladeada
     L.transform([objs["RightArm"]], Matrix.Rotation(-math.radians(84), 4, "X"), ZB_PIV["RightArm"])
     L.transform([objs["LeftArm"]], Matrix.Rotation(-math.radians(95), 4, "X"), ZB_PIV["LeftArm"])
     L.transform([objs["Head"]], Matrix.Rotation(math.radians(9), 4, "Y") @ Matrix.Rotation(math.radians(6), 4, "X"), ZB_PIV["Head"])
-    return list(objs.values()), 1.0
+    return list(objs.values())
 
+
+def e_basico():
+    """Zombi básico: R6 clásico, sin cara, descalzo y sin uñas, con mucho detalle."""
+    return _zb_body(_zb_mats(), random.Random(7)), 1.0
+
+
+def e_generador():
+    """Zombi de apoyo con un generador de escudos en la espalda. La cúpula de energía es una parte aparte: `Escudo`."""
+    K = _zb_mats()
+    K.update(SHIRT=mat("Mono_Tecnico", (0.20, 0.22, 0.25)), SHIRT2=mat("Mono_Oscuro", (0.09, 0.10, 0.12)),
+             PANTS=mat("Mono_Pantalon", (0.15, 0.16, 0.19)))
+    metal = mat("Metal_Generador", (0.12, 0.13, 0.16), 0.8, 0.35)
+    steel = mat("Acero", (0.5, 0.52, 0.56), 0.9, 0.3)
+    stripe = mat("Franja_Celeste", (0.2, 0.7, 1.0))
+    glow = mat("Energia_Celeste", (0.3, 0.85, 1.0), emission=(0.25, 0.8, 1.0), strength=6)
+    leds = [mat(f"Led_{n}", c, emission=c, strength=5) for n, c in (("Verde", (0.1, 1, 0.2)), ("Amarillo", (1, 0.8, 0.1)), ("Rojo", (1, 0.1, 0.05)))]
+
+    def gear(P):
+        T = P["Torso"]
+        pc = Vector((0, 0.82, 3.1))                                              # mochila generadora
+        T.append(box((1.5, 0.65, 1.6), pc, metal, bevel=0.08))
+        T.append(box((1.56, 0.7, 0.12), pc + Vector((0, 0, 0.62)), steel, bevel=0.02))
+        T.append(box((1.56, 0.7, 0.12), pc + Vector((0, 0, -0.62)), steel, bevel=0.02))
+        for sx in (-1, 1):
+            for sz in (-1, 1):                                                   # remaches
+                T.append(sphere(0.05, pc + Vector((sx * 0.68, 0.34, sz * 0.48)), steel, subdiv=1))
+            for k in range(4):                                                   # rejillas
+                T.append(box((0.04, 0.4, 0.06), pc + Vector((sx * 0.77, 0, -0.3 + k * 0.17)), mat("Negro", (0.02, 0.02, 0.02)), bevel=0))
+        cc = pc + Vector((0, 0.42, 0))                                           # núcleo de energía
+        T.append(cyl(0.3, 1.05, cc, glow, verts=16, bevel=0))
+        for z in (-0.25, 0.25):
+            T.append(L.torus(0.33, 0.05, cc + Vector((0, 0, z)), steel, seg=16, minor=6))
+        for z in (-0.56, 0.56):
+            T.append(cyl(0.35, 0.1, cc + Vector((0, 0, z)), steel, verts=16, bevel=0.02))
+        for k, m in enumerate(leds):                                             # luces de estado
+            T.append(box((0.1, 0.05, 0.1), pc + Vector((-0.55 + k * 0.15, 0.34, 0.45)), m, bevel=0))
+        # antena con punta de energía
+        ab = pc + Vector((0.5, 0.1, 0.8))
+        T.append(L.rod(ab, ab + Vector((0, 0.05, 1.3)), 0.04, steel))
+        T.append(cyl(0.08, 0.12, ab + Vector((0, 0.05, 0.05)), steel, verts=10, bevel=0))
+        T.append(sphere(0.11, ab + Vector((0, 0.05, 1.38)), glow, subdiv=2))
+        for z in (0.5, 0.85):
+            T.append(L.torus(0.12 - z * 0.05, 0.02, ab + Vector((0, 0.05, z)), glow, seg=10, minor=4))
+        # tirantes sobre los hombros
+        for sx in (-1, 1):
+            T.append(box((0.25, 1.06, 0.06), (sx * 0.55, 0, 4.03), metal, bevel=0.01))
+            T.append(box((0.25, 0.06, 0.35), (sx * 0.55, -0.53, 3.85), metal, bevel=0.01))
+            T.append(box((0.08, 0.07, 0.08), (sx * 0.55, -0.56, 3.75), steel, bevel=0))
+        # cables al emisor del pecho
+        em = Vector((0, -0.6, 3.25))
+        for sx in (-1, 1):
+            pts = [Vector((sx * 0.72, 0.5, 3.75)), Vector((sx * 0.8, 0.1, 4.08)), Vector((sx * 0.8, -0.55, 3.85)),
+                   Vector((sx * 0.35, -0.6, 3.45)), em + Vector((sx * 0.15, 0, 0))]
+            for a, b in zip(pts, pts[1:]):
+                T.append(L.rod(a, b, 0.045, glow if sx > 0 else mat("Cable_Negro", (0.03, 0.03, 0.03)), verts=6))
+        T.append(cyl(0.24, 0.1, em, steel, rot=(math.pi / 2, 0, 0), verts=16, bevel=0.02))
+        T.append(cyl(0.16, 0.06, em + Vector((0, -0.05, 0)), glow, rot=(math.pi / 2, 0, 0), verts=16, bevel=0))
+        T.append(L.torus(0.24, 0.03, em + Vector((0, -0.05, 0)), metal, rot=(math.pi / 2, 0, 0), seg=16, minor=4))
+        # franjas celestes en el mono (piernas y mangas)
+        for nm, x in (("RightLeg", -0.5), ("LeftLeg", 0.5)):
+            P[nm].append(box((1.05, 1.05, 0.1), (x, 0, 1.6), stripe, bevel=0))
+        for nm, x in (("RightArm", -1.5), ("LeftArm", 1.5)):
+            P[nm].append(box((1.08, 1.08, 0.08), (x, 0, 3.42), stripe, bevel=0))
+        # brazo izquierdo: mando de muñeca con pantalla (sin manos ni uñas)
+        P["LeftArm"].append(box((1.1, 1.1, 0.32), (1.5, 0, 2.3), metal, bevel=0.04))
+        P["LeftArm"].append(box((0.5, 0.05, 0.2), (1.5, -0.57, 2.3), glow, bevel=0))
+        for k, m in enumerate(leds):
+            P["LeftArm"].append(box((0.07, 0.05, 0.07), (1.65 + 0.1 * k - 0.1, -0.57, 2.42), m, bevel=0))
+        P["LeftArm"].append(cyl(0.12, 0.08, (1.5, 0, 2.0 - 0.06), glow, verts=12, bevel=0))  # emisor en la punta
+        # auricular en la cabeza
+        h = ZB_HEAD + Vector((0.63, 0.05, 0.0))
+        P["Head"].append(box((0.1, 0.35, 0.35), h, metal, bevel=0.03))
+        P["Head"].append(box((0.04, 0.2, 0.2), h + Vector((0.06, 0, 0)), glow, bevel=0))
+        P["Head"].append(L.rod(h + Vector((0.05, -0.1, -0.1)), h + Vector((0.0, -0.45, -0.35)), 0.025, metal, verts=6))
+
+    objs = _zb_body(K, random.Random(11), gear)
+    # cúpula de escudo (parte aparte para prenderla/apagarla en Roblox)
+    shield = mat("Escudo_Energia", (0.35, 0.8, 1.0), rough=0.1, emission=(0.2, 0.65, 1.0), strength=1.5)
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=3, radius=1, location=(0, -0.45, 0))
+    dome = bpy.context.active_object
+    dome.scale = (2.9, 3.1, 5.6)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    bm = bmesh.new()
+    bm.from_mesh(dome.data)
+    bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, 0.05), plane_no=(0, 0, 1),
+                           clear_inner=True)
+    bm.to_mesh(dome.data)
+    bm.free()
+    dome.data.materials.append(shield)
+    ring = [L.torus(2.95, 0.07, (0, -0.45, 0.07), glow, rot=(0, 0, 0), seg=40, minor=6)]
+    ring[0].scale = (1, 3.15 / 2.95, 1)
+    for k in range(6):                                                           # nodos emisores en el piso
+        a = k / 6 * 2 * math.pi
+        ring.append(box((0.25, 0.25, 0.18), (math.cos(a) * 2.9, -0.45 + math.sin(a) * 3.1, 0.09), metal, rot=(0, 0, a), bevel=0.03))
+    objs.append(join([dome] + ring, "Escudo", (0, 0, 3.0)))
+    return objs, 1.3
 
 
 def e_corredor():
@@ -1137,6 +1234,7 @@ def armored(tier, s=1.1, weapon="espada"):
 
 BUILDERS = {
     "zombi_basico": e_basico,
+    "zombi_generador": e_generador,
     "zombi_corredor": e_corredor,
     "zombi_tanque": e_tanque,
     "zombi_escudo": e_escudo,
@@ -1177,6 +1275,9 @@ def build(nm):
             o.location.z += 1.0
     out = os.path.join(HERE, nm)
     L.export(out, nm, objs)
+    sh = bpy.data.materials.get("Escudo_Energia")                              # cúpula semitransparente solo en la vista
+    if sh:
+        sh.node_tree.nodes["Principled BSDF"].inputs["Alpha"].default_value = 0.1
     if not os.environ.get("NO_RENDER"):
         L.render(out, target=(0, -0.5 * s, 2.6 * s), dist=0.85 * s)
     print("LISTO", nm)
