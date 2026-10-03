@@ -783,6 +783,116 @@ def e_divisor():
     return _zb_body(K, random.Random(31), gear, chest=False), 1.0
 
 
+def e_explosivo():
+    """Zombi explosivo (kamikaze): bomba con mecha en la espalda, barriles de TNT, dinamita y detonador."""
+    K = _zb_mats()
+    K.update(SHIRT=mat("Camisa_Caqui", (0.55, 0.45, 0.25)), SHIRT2=mat("Caqui_Oscuro", (0.3, 0.24, 0.12)),
+             PANTS=mat("Pantalon_Oliva", (0.2, 0.22, 0.12)))
+    bomb = mat("Bomba_Negra", (0.04, 0.04, 0.05), 0.4, 0.35)
+    steel = mat("Acero", (0.5, 0.52, 0.56), 0.9, 0.3)
+    red = mat("Dinamita_Roja", (0.75, 0.06, 0.04), 0.1, 0.5)
+    white = mat("Etiqueta_Blanca", (0.92, 0.9, 0.85))
+    black = mat("Negro", (0.02, 0.02, 0.02))
+    leather = mat("Cuero_Canana", (0.25, 0.15, 0.07))
+    rope = mat("Mecha", (0.75, 0.62, 0.38))
+    tape = mat("Cinta_Gris", (0.5, 0.5, 0.48))
+    soot = mat("Hollin", (0.08, 0.07, 0.07))
+    spark = mat("Chispa", (1.0, 0.75, 0.15), emission=(1.0, 0.6, 0.1), strength=8)
+    led = mat("Led_Rojo", (1, 0.1, 0.05), emission=(1, 0.1, 0.05), strength=5)
+    rng = random.Random(42)                                                     # manchas de hollín
+
+    def fuse(T, pts, lit=True):
+        """Mecha: tramos de soga y, si está encendida, una chispa en la punta."""
+        for a, b in zip(pts, pts[1:]):
+            T.append(L.rod(a, b, 0.03, rope, verts=6))
+        if lit:
+            tip = pts[-1]
+            T.append(sphere(0.07, tip, spark, subdiv=1))
+            for k in range(5):
+                d = Vector((math.cos(k * 1.26), math.sin(k * 1.26) * 0.6, math.sin(k * 2.1) * 0.8 + 0.3)).normalized()
+                T.append(cone(0.03, 0.16, tip + d * 0.1, spark, rot=d, verts=4))
+
+    def dynamite(T, c, h=0.42, r=0.07, lit=False):
+        """Cartucho de dinamita parado, con mecha corta."""
+        T.append(cyl(r, h, c, red, verts=10, bevel=0))
+        T.append(cyl(r * 1.02, 0.05, c + Vector((0, 0, h * 0.3)), tape, verts=10, bevel=0))
+        fuse(T, [c + Vector((0, 0, h / 2)), c + Vector((0.03, 0, h / 2 + 0.12)), c + Vector((0.07, 0.02, h / 2 + 0.2))], lit)
+
+    def tnt(T, c, y, s=1.0):
+        """Letras "TNT" en el plano y = y (mirando hacia +Y), centradas en c (x, z)."""
+        segs = [(-0.27, 0.1, -0.13, 0.1), (-0.2, -0.1, -0.2, 0.1),                          # T
+                (-0.08, -0.1, -0.08, 0.1), (0.08, -0.1, 0.08, 0.1), (-0.08, 0.08, 0.08, -0.08),   # N
+                (0.13, 0.1, 0.27, 0.1), (0.2, -0.1, 0.2, 0.1)]                              # T
+        for u0, v0, u1, v1 in segs:
+            a = Vector((c.x - u0 * s, y, c.z + v0 * s))                                    # mirando a +Y: la x va al revés
+            b = Vector((c.x - u1 * s, y, c.z + v1 * s))
+            T.append(strut(a, b + (b - a).normalized() * 0.025 * s, 0.02, 0.05 * s, black, bevel=0))
+
+    def gear(P):
+        T = P["Torso"]
+        # --- bomba redonda gigante en la espalda, con mecha encendida
+        bc = Vector((0, 1.15, 3.15))
+        T.append(sphere(0.68, bc, bomb, subdiv=3))
+        T.append(cyl(0.22, 0.2, bc + Vector((0, 0, 0.7)), steel, verts=14, bevel=0.02))
+        T.append(L.torus(0.22, 0.04, bc + Vector((0, 0, 0.78)), steel, seg=14, minor=4))
+        fuse(T, [bc + Vector((0, 0, 0.8)), bc + Vector((0.05, 0.05, 1.0)), bc + Vector((0.18, 0.2, 1.15)),
+                 bc + Vector((0.3, 0.42, 1.18)), bc + Vector((0.36, 0.6, 1.08))])
+        T.append(sphere(0.12, bc + Vector((-0.3, 0.5, 0.35)), mat("Brillo_Bomba", (0.6, 0.6, 0.65), 0.2, 0.2), subdiv=1,
+                        scale=(1, 0.4, 1.4)))                                             # brillo de caricatura
+        for z in (-0.25, 0.25):                                                     # correas que la sujetan
+            T.append(L.torus(0.62 + 0.0, 0.05, bc + Vector((0, 0, z)), leather, seg=20, minor=4))
+        for sx in (-1, 1):
+            T.append(box((0.22, 1.06, 0.06), (sx * 0.55, 0, 4.03), leather, bevel=0.01))
+            T.append(box((0.22, 0.06, 0.4), (sx * 0.55, -0.53, 3.82), leather, bevel=0.01))
+            T.append(box((0.26, 0.07, 0.12), (sx * 0.55, -0.56, 3.62), steel, bevel=0.01))
+            # barriles de TNT a los costados de la bomba
+            c = Vector((sx * 0.85, 0.9, 2.85))
+            T.append(cyl(0.27, 0.8, c, red, verts=14, bevel=0.02))
+            for z in (-0.3, 0.3):
+                T.append(L.torus(0.275, 0.03, c + Vector((0, 0, z)), black, seg=14, minor=4))
+            T.append(box((0.4, 0.04, 0.3), c + Vector((0, 0.27, 0)), white, bevel=0))
+            tnt(T, c, c.y + 0.3, s=0.6)
+            fuse(T, [c + Vector((0, 0, 0.4)), c + Vector((sx * 0.05, 0.05, 0.6)), c + Vector((sx * 0.12, 0.15, 0.7))], lit=False)
+        # --- canana cruzada con dinamita en el pecho
+        a, b = Vector((0.82, -0.56, 3.95)), Vector((-0.82, -0.56, 2.32))
+        T.append(strut(a, b, 0.05, 0.22, leather, bevel=0))
+        for k in range(5):
+            dynamite(T, a.lerp(b, 0.18 + k * 0.16) + Vector((0, -0.08, 0)), h=0.36, r=0.065)
+        # --- temporizador en el pecho
+        tc = Vector((0.45, -0.58, 3.62))
+        T.append(box((0.42, 0.1, 0.22), tc, black, bevel=0.02))
+        for k in range(4):                                                         # números en rojo
+            T.append(box((0.06, 0.03, 0.12), tc + Vector((-0.13 + k * 0.085 + (0.02 if k > 1 else 0), -0.055, 0)), led, bevel=0))
+        T.append(box((0.02, 0.03, 0.02), tc + Vector((0.005, -0.055, 0.03)), led, bevel=0))
+        T.append(box((0.02, 0.03, 0.02), tc + Vector((0.005, -0.055, -0.03)), led, bevel=0))
+        for sx, m in ((-1, led), (1, led)):
+            T.append(L.rod(tc + Vector((sx * 0.2, 0, -0.08)), tc + Vector((sx * 0.35, 0.02, -0.4)), 0.02,
+                           mat("Cable_Rojo", (0.8, 0.05, 0.05)) if sx < 0 else mat("Cable_Azul", (0.05, 0.2, 0.8)), verts=6))
+        # --- atados de dinamita en el cinturón
+        for sx in (-1, 1):
+            for k in range(3):
+                dynamite(T, Vector((sx * 0.82 + (k - 1) * 0.14, -0.62, 2.0)), h=0.4, r=0.07, lit=(k == 1 and sx < 0))
+            T.append(box((0.48, 0.18, 0.07), Vector((sx * 0.82, -0.62, 2.05)), tape, bevel=0))
+        # --- hollín y quemaduras
+        for _ in range(7):
+            _zb_front(P, "Torso", (rng.uniform(0.15, 0.3), rng.uniform(0.1, 0.25)), rng.uniform(-0.9, 0.9),
+                      rng.uniform(2.3, 3.9), -0.5, soot, rot=rng.uniform(0, 3))
+        for nm, sx in (("RightArm", -1), ("LeftArm", 1)):
+            for _ in range(3):
+                _zb_side(P, nm, (rng.uniform(0.15, 0.3), rng.uniform(0.15, 0.3)), sx * 2.0, rng.uniform(-0.3, 0.3),
+                         rng.uniform(2.3, 3.7), soot, rot=rng.uniform(0, 1))
+        # --- detonador en la muñeca izquierda (sin manos ni uñas)
+        A = P["LeftArm"]
+        A.append(box((1.08, 1.08, 0.32), (1.5, 0, 2.35), black, bevel=0.04))
+        A.append(box((0.45, 0.2, 0.25), (1.5, -0.6, 2.35), mat("Caja_Detonador", (0.85, 0.65, 0.05)), bevel=0.03))
+        A.append(cyl(0.1, 0.08, (1.5, -0.73, 2.35), led, rot=(math.pi / 2, 0, 0), verts=12, bevel=0))     # botón rojo
+        A.append(L.rod(Vector((1.92, 0.25, 2.25)), Vector((1.92, 0.25, 2.9)), 0.025, steel))
+        A.append(sphere(0.05, (1.92, 0.25, 2.92), led, subdiv=1))
+        A.append(L.rod(Vector((1.55, 0.4, 2.5)), Vector((1.2, 0.5, 3.4)), 0.02, mat("Cable_Rojo", (0.8, 0.05, 0.05)), verts=6))
+
+    return _zb_body(K, random.Random(41), gear, chest=False), 1.0
+
+
 def e_corredor():
     K = base_mats()
     skin = mat("Piel_Corredor", (0.45, 0.6, 0.3))
@@ -1516,6 +1626,7 @@ BUILDERS = {
     "zombi_generador": e_generador,
     "zombi_veloz": e_veloz,
     "zombi_divisor": e_divisor,
+    "zombi_explosivo": e_explosivo,
     "zombi_corredor": e_corredor,
     "zombi_tanque": e_tanque,
     "zombi_escudo": e_escudo,
