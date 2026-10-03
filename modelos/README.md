@@ -144,3 +144,12 @@ El script `puestos/puestos.py` los genera. Para regenerar uno solo: `python pues
 **Jefes:** `minijefe_bruto`, `lich` (calavera y bastón), `jefe_rey_zombi`, `jefe_1x1x1x1` (corona de dominó, costillas, capa roja y espadas de fuego verde), `jefe_john_doe` (brazo de púa corrupta y código binario rojo), `jefe_brute` (cadenas, candado y esposas con pinchos).
 
 `enemigos/enemigos.py` los genera (`python enemigos.py zombi_basico` para uno solo).
+
+## Zombi R6 sin cara (`enemigos/zombi_r6_sin_cara/`)
+Zombi clásico de Roblox con **proporciones R6 exactas** (cabeza redonda, torso 2x1x2, brazos y piernas 1x1x2) y **sin cara**: el frente de la cabeza es liso. Viene con los brazos estirados hacia adelante y la cabeza un poco ladeada.
+
+Detalles: cerebro a la vista con el cráneo roto, costura en la cabeza, sangre que chorrea por atrás, camisa rota con un agujero en el pecho (costillas), zarpazo, columna a la vista en la espalda, mangas rotas, vendas con sangre en el brazo derecho, mordida con hueso en el brazo izquierdo, cinturón con hebilla, rodilla al aire con la rótula, parche cosido en el pantalón y zapatillas con suela y cordones.
+
+Partes para animar con `Motor6D`: `Head`, `Torso`, `RightArm`, `LeftArm`, `RightLeg`, `LeftLeg` (pivote en la articulación). Mira hacia **-Y**, pies en el piso. ~6.400 triángulos. Copia del `.glb` en `roblox/zombi_r6_sin_cara.glb`.
+
+Se genera con `python enemigos/zombi_r6.py`.
