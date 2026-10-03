@@ -131,7 +131,7 @@ El script `puestos/puestos.py` los genera. Para regenerar uno solo: `python pues
 33 enemigos estilo bloque (tipo Roblox R6), sin manos (brazos lisos) y **sin uñas ni garras** en ningún modelo. Cada uno viene separado en partes con el pivote en la articulación, listo para animar con `Motor6D`:
 `Head` (cuello), `Torso`, `LeftArm` / `RightArm` (hombros), `LeftLeg` / `RightLeg` (caderas). Miran hacia **-Y**; los pies están en el piso.
 
-**Comunes:** `zombi_basico`, `zombi_corredor` (rápido), `zombi_tanque` (mucha vida), `zombi_escudo` (bloquea de frente), `zombi_minero`, `zombi_helado`, `zombi_esqueleto`, `zombi_boxeador`, `zombi_blindado` (bandas de chapa).
+**Comunes:** `zombi_basico` (R6 clásico **sin cara**, descalzo y muy detallado: cerebro a la vista, camisa rota con costillas y columna, vendas, mordidas, parche, barro y grillete oxidado), `zombi_corredor` (rápido), `zombi_tanque` (mucha vida), `zombi_escudo` (bloquea de frente), `zombi_minero`, `zombi_helado`, `zombi_esqueleto`, `zombi_boxeador`, `zombi_blindado` (bandas de chapa).
 
 **Especiales:** `zombi_radiactivo`, `zombi_astral`, `zombi_cosmico`, `zombi_radiante` (cura), `zombi_invocador` (invoca minions), `zombi_vacio`, `zombi_sigiloso` (oculto: solo lo ven torretas con detección), `zombi_abominacion`, `golem_lava`.
 
@@ -144,12 +144,3 @@ El script `puestos/puestos.py` los genera. Para regenerar uno solo: `python pues
 **Jefes:** `minijefe_bruto`, `lich` (calavera y bastón), `jefe_rey_zombi`, `jefe_1x1x1x1` (corona de dominó, costillas, capa roja y espadas de fuego verde), `jefe_john_doe` (brazo de púa corrupta, el otro brazo con la punta corrupta sin garras, y código binario rojo), `jefe_brute` (cadenas, candado y esposas con pinchos).
 
 `enemigos/enemigos.py` los genera (`python enemigos.py zombi_basico` para uno solo).
-
-## Zombi R6 sin cara (`enemigos/zombi_r6_sin_cara/`)
-Zombi clásico de Roblox con **proporciones R6 exactas** (cabeza redonda, torso 2x1x2, brazos y piernas 1x1x2) y **sin cara**: el frente de la cabeza es liso. Viene con los brazos estirados hacia adelante y la cabeza un poco ladeada. Va **descalzo** y **sin uñas**: brazos y pies terminan lisos, como en Roblox.
-
-Detalles: cerebro a la vista con el cráneo roto, costura en la cabeza, manchas podridas planas y una mordida atrás, sangre que chorrea por la nuca, camisa rota con cuello en V desgarrado, cadenita oxidada, bolsillo roto, agujero en el pecho (costillas), zarpazo, barro, columna a la vista en la espalda, mangas rotas, vendas con sangre en el brazo derecho, mordida con hueso en el brazo izquierdo, venas podridas, puntas de los brazos manchadas de sangre, cinturón con hebilla, rodilla al aire con la rótula, tajo en la canilla, parche cosido en el pantalón, botamangas rotas, pies descalzos con barro y un grillete oxidado con la cadena cortada en el tobillo derecho.
-
-Partes para animar con `Motor6D`: `Head`, `Torso`, `RightArm`, `LeftArm`, `RightLeg`, `LeftLeg` (pivote en la articulación). Mira hacia **-Y**, pies en el piso. ~7.000 triángulos. Copia del `.glb` en `roblox/zombi_r6_sin_cara.glb`.
-
-Se genera con `python enemigos/zombi_r6.py`.
