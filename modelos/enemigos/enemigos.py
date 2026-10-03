@@ -500,12 +500,11 @@ def e_generador():
         T.append(box((0.5, 0.04, 0.3), Vector((0.55, by + 0.01, 2.75)), steel, bevel=0.01))
         for k in range(3):
             T.append(box((0.3, 0.05, 0.03), Vector((0.55, by + 0.02, 2.82 - k * 0.07)), black, bevel=0))
-        # manija arriba y proyectores tipo bobina
+        # manija arriba y 2 proyectores tipo bobina, uno a cada lado
         for sx in (-1, 1):
             T.append(box((0.06, 0.06, 0.18), Vector((sx * 0.25, 0.62, 3.99)), steel, bevel=0))
             coil(T, Vector((sx * 0.55, 0.95, 3.9)), 0.75)
         T.append(box((0.56, 0.08, 0.06), Vector((0, 0.62, 4.08)), black, bevel=0.01))
-        coil(T, cc + Vector((0, 0, 0.61)), 0.55, scale=1.3)                     # bobina central sobre el núcleo
         # --- tirantes con hebillas
         for sx in (-1, 1):
             T.append(box((0.25, 1.06, 0.06), (sx * 0.55, 0, 4.03), metal, bevel=0.01))

@@ -133,7 +133,7 @@ El script `puestos/puestos.py` los genera. Para regenerar uno solo: `python pues
 
 **Comunes:** `zombi_basico` (R6 clásico **sin cara**, descalzo y muy detallado: cerebro a la vista, camisa rota con costillas y columna, vendas, mordidas, parche, barro y grillete oxidado), `zombi_corredor` (rápido), `zombi_tanque` (mucha vida), `zombi_escudo` (bloquea de frente), `zombi_minero`, `zombi_helado`, `zombi_esqueleto`, `zombi_boxeador`, `zombi_blindado` (bandas de chapa).
 
-**Especiales:** `zombi_generador` (apoyo: mochila generadora de escudos con núcleo de energía, 3 bobinas proyectoras, celdas de energía, manómetro, franjas de peligro, mangueras corrugadas al emisor del pecho, cable en la nuca, auricular, mando de muñeca, bolsillos con herramientas y parche "G-7"; ver abajo), `zombi_radiactivo`, `zombi_astral`, `zombi_cosmico`, `zombi_radiante` (cura), `zombi_invocador` (invoca minions), `zombi_vacio`, `zombi_sigiloso` (oculto: solo lo ven torretas con detección), `zombi_abominacion`, `golem_lava`.
+**Especiales:** `zombi_generador` (apoyo: mochila generadora de escudos con núcleo de energía, 2 bobinas proyectoras, celdas de energía, manómetro, franjas de peligro, mangueras corrugadas al emisor del pecho, cable en la nuca, auricular, mando de muñeca, bolsillos con herramientas y parche "G-7"; ver abajo), `zombi_radiactivo`, `zombi_astral`, `zombi_cosmico`, `zombi_radiante` (cura), `zombi_invocador` (invoca minions), `zombi_vacio`, `zombi_sigiloso` (oculto: solo lo ven torretas con detección), `zombi_abominacion`, `golem_lava`.
 
 **Voladores:** `zombi_espectral` (fantasma), `zombi_alado` (alas de murciélago).
 
