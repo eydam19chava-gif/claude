@@ -1174,6 +1174,9 @@ def e_comandante():
         T.append(box((1.74, 0.16, 0.08), (0, -0.57, 2.78), gold, bevel=0))
         hexplate(T, Vector((0, -0.65, 3.35)), 0.3, (math.pi / 2, 0, 0), gold, 0.06)
         hexplate(T, Vector((0, -0.69, 3.35)), 0.22, (math.pi / 2, 0, 0), glow, 0.05)
+        for k in range(8):                                                          # rayos del emblema
+            a = k / 8 * 2 * math.pi + math.pi / 8
+            T.append(box((0.16, 0.03, 0.04), (math.cos(a) * 0.42, -0.645, 3.35 + math.sin(a) * 0.42), gold, rot=(0, -a, 0), bevel=0))
         for k, m in enumerate(medals):                                             # medallas
             x = -0.65 + k * 0.17
             T.append(box((0.12, 0.05, 0.16), (x, -0.66, 3.7), m, bevel=0))
@@ -1257,6 +1260,11 @@ def e_comandante():
             T.append(box((0.24, 0.4, 0.34), bc, armor, bevel=0.03))
             T.append(box((0.26, 0.42, 0.1), bc + Vector((0, 0, 0.14)), K["SHIRT2"], rot=(0, -sx * 0.12, 0), bevel=0.02))
             T.append(box((0.05, 0.08, 0.08), bc + Vector((sx * 0.13, 0, 0.07)), gold, bevel=0))
+        amber = mat("Baliza_Ambar", (1.0, 0.55, 0.05), emission=(1.0, 0.5, 0.02), strength=4)
+        for sx in (-1, 1):                                                          # balizas en las esquinas de arriba
+            bb = gc + Vector((sx * 0.78, -0.3, 1.0))
+            T.append(cyl(0.12, 0.08, bb, dark, verts=12, bevel=0))
+            T.append(sphere(0.1, bb + Vector((0, 0, 0.08)), amber, subdiv=2, scale=(1, 1, 0.9)))
         # alas hexagonales a los costados del generador (3 placas en abanico por lado)
         for sx in (-1, 1):
             base = gc + Vector((sx * 0.92, 0.1, 0.2))
@@ -1285,6 +1293,8 @@ def e_comandante():
             T.append(cone(0.13, 0.2, fl + Vector((-0.27 + k * 0.27, 0, -0.38)), banner, rot=(math.pi, 0, 0), verts=3))
         for y in (-0.03, 0.03):
             hexplate(T, fl + Vector((0, y * 1.2, 0.02)), 0.18, (math.pi / 2, 0, 0), glow, 0.02)
+        for sx in (-1, 1):                                                          # bordes dorados del estandarte
+            T.append(box((0.04, 0.05, 0.62), fl + Vector((sx * 0.4, 0, 0)), gold, bevel=0))
         # caños del generador a las hombreras
         for sx in (-1, 1):
             T.append(L.rod(gc + Vector((sx * 0.75, -0.2, 0.9)), Vector((sx * 1.2, 0.3, 4.2)), 0.07, dark, verts=8))
@@ -1306,6 +1316,10 @@ def e_comandante():
             cc = Vector((sx * 1.35, 0.7, 2.7))
             T.append(box((0.62, 0.05, 2.5), cc, cape, rot=(-0.12, 0, sx * 0.05), bevel=0))
             T.append(box((0.64, 0.06, 0.08), cc + Vector((0, -0.15, 1.2)), gold, rot=(-0.12, 0, 0), bevel=0))
+            for ex in (-0.31, 0.31):                                                # bordes dorados de la capa
+                T.append(box((0.04, 0.06, 2.4), cc + Vector((ex, 0.01, 0)), gold, rot=(-0.12, 0, sx * 0.05), bevel=0))
+            hexplate(T, cc + Vector((0, 0.12, 0.75)), 0.15, Vector((0, 1, -0.12)).normalized(), gold, 0.03)
+            hexplate(T, cc + Vector((0, 0.14, 0.75)), 0.1, Vector((0, 1, -0.12)).normalized(), glow, 0.03)
             for k in range(3):                                                     # borde rasgado
                 T.append(cone(0.11, 0.22, cc + Vector((-0.2 + k * 0.2, 0.15, -1.33)), cape, rot=(math.pi, 0, 0), verts=3))
             _zb_front(P, "Torso", (0.2, 0.15), cc.x, 2.0, cc.y + 0.12, K["BLOOD2"], rot=0.6)   # agujero/mancha
@@ -1329,6 +1343,13 @@ def e_comandante():
                 a = (k - 1) / 6 * 2 * math.pi + math.pi / 6
                 q = Vector((0, math.cos(a) * 0.46, math.sin(a) * 0.46))
             hexplate(A, sc + Vector((0.12, 0, 0)) + q, 0.24, (0, math.pi / 2, 0), glow, 0.03)
+        for nm, sx in (("RightArm", -1), ("LeftArm", 1)):
+            P[nm].append(box((0.95, 0.1, 0.8), (sx * 1.5, -0.56, 3.45), armor, bevel=0.03))   # arriba (con el brazo en pose)
+            P[nm].append(box((0.98, 0.12, 0.06), (sx * 1.5, -0.56, 3.07), gold, bevel=0))
+            hexplate(P[nm], Vector((sx * 1.5, -0.62, 3.5)), 0.13, (math.pi / 2, 0, 0), glow, 0.03)
+            if sx < 0:                                                              # costado (el izquierdo tiene el escudo)
+                P[nm].append(box((0.1, 0.95, 0.8), (sx * 2.06, 0, 3.45), armor, bevel=0.03))
+                P[nm].append(box((0.12, 0.98, 0.06), (sx * 2.06, 0, 3.07), gold, bevel=0))
         # anillos de energía en los antebrazos
         for nm, sx in (("RightArm", -1), ("LeftArm", 1)):
             for z in (2.95, 3.15):
