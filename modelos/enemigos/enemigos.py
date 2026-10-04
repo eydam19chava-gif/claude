@@ -9,11 +9,13 @@ Uso: python enemigos.py [nombre ...]   (sin nombres arma todos)
 """
 import os
 import random
+import shutil
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import bpy  # noqa: E402
 import lib_torretas as L  # noqa: E402
+import rbxmx  # noqa: E402
 from lib_torretas import Matrix, Vector, box, cone, cyl, join, math, rod, sphere, strut, torus  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -1206,6 +1208,32 @@ def e_comandante():
                 T.append(box((0.06, 0.64, 0.06), gc + Vector((sx * 0.94, 0, -0.36 + k * 0.18)), dark, bevel=0))
         for x, y in ((-0.6, 0.75), (0.6, 0.75), (-0.6, 1.25), (0.6, 1.25)):         # bobinas
             coil(T, Vector((x, y, gc.z + 0.95)), 0.9, 1.2)
+        # plato proyector hexagonal arriba del generador (de donde sale el escudo)
+        dc = gc + Vector((0, 0.15, 1.08))
+        dd = Vector((0, 0.35, 1)).normalized()
+        T.append(cyl(0.18, 0.2, dc, steel, rot=dd, verts=10, bevel=0.01))
+        hexplate(T, dc + dd * 0.15, 0.62, dd, gold, 0.06)
+        hexplate(T, dc + dd * 0.19, 0.55, dd, armor, 0.04)
+        for k in range(7):                                                          # panal en el plato
+            q = Vector((0, 0, 0)) if k == 0 else Vector((math.cos(k * math.pi / 3), math.sin(k * math.pi / 3), 0)) * 0.3
+            q = dd.to_track_quat("Z", "Y").to_matrix() @ q
+            hexplate(T, dc + dd * 0.22 + q, 0.14, dd, glow, 0.03)
+        tip = dc + dd * 0.85
+        for k in range(3):                                                          # varillas al emisor
+            a = k / 3 * 2 * math.pi
+            b = dc + dd * 0.2 + dd.to_track_quat("Z", "Y").to_matrix() @ Vector((math.cos(a) * 0.5, math.sin(a) * 0.5, 0))
+            T.append(L.rod(b, tip, 0.025, gold, verts=6))
+        T.append(sphere(0.11, tip, glow, subdiv=2))
+        T.append(L.torus(0.16, 0.025, tip, gold, rot=dd, seg=12, minor=4))
+        # franjas de luz en el frente de las hombreras
+        for sx in (-1, 1):
+            T.append(box((1.0, 0.04, 0.08), (sx * 1.45, -0.67, 4.1), glow, bevel=0))
+        # bolsas azules con broche dorado en el cinturón
+        for sx in (-1, 1):
+            bc = Vector((sx * 0.75, -0.6, 2.0))
+            T.append(box((0.36, 0.22, 0.34), bc, armor, bevel=0.03))
+            T.append(box((0.38, 0.24, 0.1), bc + Vector((0, 0, 0.14)), K["SHIRT2"], rot=(0.12, 0, 0), bevel=0.02))
+            T.append(box((0.08, 0.05, 0.08), bc + Vector((0, -0.13, 0.07)), gold, bevel=0))
         # estandarte del comandante
         pb = gc + Vector((-0.8, 0.3, 0.95))
         T.append(L.rod(pb, pb + Vector((0, 0, 1.7)), 0.04, gold))
@@ -1255,6 +1283,10 @@ def e_comandante():
                 a = (k - 1) / 6 * 2 * math.pi + math.pi / 6
                 q = Vector((0, math.cos(a) * 0.46, math.sin(a) * 0.46))
             hexplate(A, sc + Vector((0.12, 0, 0)) + q, 0.24, (0, math.pi / 2, 0), glow, 0.03)
+        # anillos de energía en los antebrazos
+        for nm, sx in (("RightArm", -1), ("LeftArm", 1)):
+            for z in (2.95, 3.15):
+                P[nm].append(box((1.1, 1.1, 0.06), (sx * 1.5, 0, z), glow, bevel=0))
         # --- brazo derecho: cañón emisor en la punta
         R = P["RightArm"]
         R.append(box((1.15, 1.15, 0.6), (-1.5, 0, 2.45), armor, bevel=0.05))
@@ -1271,6 +1303,8 @@ def e_comandante():
             P[nm].append(box((1.1, 1.1, 0.06), (x, 0, 1.42), gold, bevel=0))
             P[nm].append(box((0.55, 0.14, 0.45), (x, -0.58, 1.35), armor, bevel=0.04))
             hexplate(P[nm], Vector((x, -0.66, 1.35)), 0.12, (math.pi / 2, 0, 0), glow, 0.04)
+            for k in range(3):                                                      # púas de la rodillera
+                P[nm].append(cone(0.06, 0.22, Vector((x - 0.15 + k * 0.15, -0.72, 1.48)), steel, rot=Vector((0, -0.5, 1)).normalized(), verts=6))
             for dx in (-0.4, 0.4):                                                  # líneas de energía
                 P[nm].append(box((0.04, 0.03, 0.55), (x + dx, -0.555, 1.0), glow, bevel=0))
 
@@ -2047,6 +2081,11 @@ BUILDERS = {
 }
 
 
+# enemigos que además salen como modelo de Roblox ya pintado (.rbxmx, hecho de Parts)
+CON_RBXMX = {"zombi_basico", "zombi_generador", "zombi_veloz", "zombi_divisor", "zombi_explosivo", "zombi_excavador",
+             "jefe_comandante_escudo"}
+
+
 def build(nm):
     L.reset()
     objs, s = BUILDERS[nm]()
@@ -2054,6 +2093,12 @@ def build(nm):
         for o in objs:
             o.location.z += 1.0
     out = os.path.join(HERE, nm)
+    if nm in CON_RBXMX:
+        pivots = {o.name: o.matrix_world.translation.copy() for o in objs}
+        os.makedirs(out, exist_ok=True)
+        n = rbxmx.write(os.path.join(out, nm + ".rbxmx"), nm, L.SPECS, pivots)
+        shutil.copy(os.path.join(out, nm + ".rbxmx"), os.path.join(HERE, "..", "roblox", nm + ".rbxmx"))
+        print(f"RBXMX {nm}: {n} Parts")
     L.export(out, nm, objs)
     if not os.environ.get("NO_RENDER"):
         L.render(out, target=(0, -0.5 * s, 2.6 * s), dist=0.85 * s)

@@ -18,8 +18,21 @@ __all__ = [
 ]
 
 
+# Fichas de cada primitiva por parte unida (para armar modelos de Roblox hechos de Parts, ver rbxmx.py).
+# SPECS[nombre_parte] = [dict(prim, M, dims, rgb, glow, ...)]
+SPECS = {}
+
+
 def reset():
+    SPECS.clear()
     bpy.ops.wm.read_factory_settings(use_empty=True)
+
+
+def _tag(obj, prim, **kw):
+    obj["prim"] = prim
+    for k, v in kw.items():
+        obj[k] = v
+    return obj
 
 
 def material(name, color, metallic=0.6, rough=0.4, emission=None, strength=6.0):
@@ -74,7 +87,7 @@ def box(size, loc, mat, rot=(0, 0, 0), bevel=0.03):
     bpy.ops.mesh.primitive_cube_add(size=1, location=loc, rotation=_rot(rot))
     obj = bpy.context.active_object
     obj.scale = size
-    return _finish(obj, mat, bevel)
+    return _tag(_finish(obj, mat, bevel), "box")
 
 
 def cyl(r, depth, loc, mat, rot=(0, 0, 0), verts=16, bevel=0.02, r2=None):
@@ -83,7 +96,9 @@ def cyl(r, depth, loc, mat, rot=(0, 0, 0), verts=16, bevel=0.02, r2=None):
     else:
         bpy.ops.mesh.primitive_cone_add(vertices=verts, radius1=r, radius2=r2, depth=depth, location=loc,
                                         rotation=_rot(rot))
-    return _finish(bpy.context.active_object, mat, bevel)
+    obj = _finish(bpy.context.active_object, mat, bevel)
+    v = obj.data.vertices[0].co
+    return _tag(obj, "cyl", verts=verts, r1=r, r2=r if r2 is None else r2, depth=depth, a0=math.atan2(v.y, v.x))
 
 
 def cone(r, depth, loc, mat, rot=(0, 0, 0), verts=12, r2=0.0):
@@ -94,13 +109,13 @@ def sphere(r, loc, mat, subdiv=2, scale=(1, 1, 1)):
     bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=subdiv, radius=r, location=loc)
     obj = bpy.context.active_object
     obj.scale = scale
-    return _finish(obj, mat, 0)
+    return _tag(_finish(obj, mat, 0), "sphere")
 
 
 def torus(R, r, loc, mat, rot=(0, 0, 0), seg=24, minor=8):
     bpy.ops.mesh.primitive_torus_add(major_radius=R, minor_radius=r, major_segments=seg, minor_segments=minor,
                                      location=loc, rotation=_rot(rot))
-    return _finish(bpy.context.active_object, mat, 0)
+    return _tag(_finish(bpy.context.active_object, mat, 0), "torus", R=R, r=r)
 
 
 def strut(p1, p2, w, h, mat, bevel=0.03):
@@ -112,7 +127,7 @@ def strut(p1, p2, w, h, mat, bevel=0.03):
     obj.rotation_mode = "QUATERNION"
     obj.rotation_quaternion = d.to_track_quat("X", "Z")
     obj.scale = (d.length, w, h)
-    return _finish(obj, mat, bevel)
+    return _tag(_finish(obj, mat, bevel), "box")
 
 
 def rod(p1, p2, r, mat, verts=10):
@@ -122,10 +137,20 @@ def rod(p1, p2, r, mat, verts=10):
     obj = bpy.context.active_object
     obj.rotation_mode = "QUATERNION"
     obj.rotation_quaternion = d.to_track_quat("Z", "Y")
-    return _finish(obj, mat, 0)
+    return _tag(_finish(obj, mat, 0), "rod", r1=r, r2=r, depth=d.length)
 
 
 def join(parts, name, origin):
+    specs = SPECS.setdefault(name, [])
+    for p in parts:                                                          # guardar la ficha antes de unir
+        if "prim" in p and p.data.materials:
+            m = p.data.materials[0]
+            bsdf = m.node_tree.nodes["Principled BSDF"]
+            glow = bsdf.inputs["Emission Strength"].default_value > 0
+            spec = {k: p[k] for k in p.keys() if k in ("prim", "verts", "r1", "r2", "depth", "a0", "R", "r")}
+            spec.update(M=p.matrix_world.copy(), dims=p.dimensions.copy(), rgb=_mat_rgb(m), glow=glow,
+                        metal=bsdf.inputs["Metallic"].default_value)
+            specs.append(spec)
     scene = bpy.context.scene
     bpy.ops.object.select_all(action="DESELECT")
     for p in parts:
@@ -146,6 +171,8 @@ def transform(objs, matrix, center):
     c = Vector(center)
     M = Matrix.Translation(c) @ matrix @ Matrix.Translation(-c)
     for o in objs:
+        for spec in SPECS.get(o.name, []):
+            spec["M"] = M @ spec["M"]
         o.matrix_world = M @ o.matrix_world
         bpy.ops.object.select_all(action="DESELECT")
         o.select_set(True)
