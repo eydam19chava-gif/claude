@@ -1161,6 +1161,9 @@ def e_comandante():
             a = math.radians(-60 + k * 15)
             H.append(box((0.06, 0.12, 0.5), hc + Vector((0, math.sin(a) * 0.3, 0.3 + math.cos(a) * 0.2)), banner, rot=(a, 0, 0), bevel=0))
         H.append(box((0.1, 0.5, 0.08), hc + Vector((0, 0, 0.22)), gold, bevel=0))
+        H.append(box((0.08, 0.2, 0.2), hc + Vector((0.68, 0.1, 0)), armor, bevel=0.02))                # antena de comunicación
+        H.append(L.rod(hc + Vector((0.7, 0.15, 0.08)), hc + Vector((0.74, 0.25, 0.8)), 0.025, steel, verts=6))
+        H.append(sphere(0.05, hc + Vector((0.74, 0.25, 0.83)), mat("Led_Rojo", (1, 0.1, 0.05), emission=(1, 0.1, 0.05), strength=5), subdiv=1))
         H.append(cyl(0.665, 0.08, hc + Vector((0, 0, -0.1)), gold, verts=24, bevel=0))
         H.append(box((0.9, 0.42, 0.05), hc + Vector((0, -0.72, -0.16)), black, rot=(0.25, 0, 0), bevel=0.02))      # visera
         hexplate(H, hc + Vector((0, -0.68, 0.06)), 0.14, (math.pi / 2, 0, 0), gold, 0.05)
@@ -1225,15 +1228,32 @@ def e_comandante():
             T.append(L.rod(b, tip, 0.025, gold, verts=6))
         T.append(sphere(0.11, tip, glow, subdiv=2))
         T.append(L.torus(0.16, 0.025, tip, gold, rot=dd, seg=12, minor=4))
+        # gola de armadura alrededor del cuello
+        T.append(cyl(0.68, 0.2, Vector((0, 0, 4.08)), armor, verts=24, bevel=0.03))
+        T.append(L.torus(0.68, 0.035, Vector((0, 0, 4.18)), gold, seg=24, minor=4))
+        # faldón de placas sobre los muslos (adelante y a los costados)
+        for x, y, w, rz in ((-0.5, -0.66, 0.8, 0), (0.5, -0.66, 0.8, 0), (-1.0, -0.2, 0.6, 1), (1.0, -0.2, 0.6, 1)):
+            c = Vector((x, y, 1.72))
+            sz = (w, 0.1, 0.55) if not rz else (0.1, w, 0.55)
+            T.append(box(sz, c, armor, rot=(0.12 if not rz else 0, 0, 0), bevel=0.03))
+            T.append(box((sz[0] + 0.03, sz[1] + 0.03, 0.06), c + Vector((0, 0, -0.27)), gold, bevel=0))
+            if not rz:
+                hexplate(T, c + Vector((0, -0.07, 0.03)), 0.1, (math.pi / 2, 0, 0), glow, 0.03)
+        # emisores chicos de escudo en las hombreras
+        for sx in (-1, 1):
+            ec = Vector((sx * 1.2, 0.35, 4.55))
+            T.append(cyl(0.1, 0.25, ec, steel, verts=10, bevel=0))
+            hexplate(T, ec + Vector((0, 0, 0.14)), 0.16, (0, 0, 0), gold, 0.04)
+            hexplate(T, ec + Vector((0, 0, 0.17)), 0.11, (0, 0, 0), glow, 0.03)
         # franjas de luz en el frente de las hombreras
         for sx in (-1, 1):
             T.append(box((1.0, 0.04, 0.08), (sx * 1.45, -0.67, 4.1), glow, bevel=0))
         # bolsas azules con broche dorado en el cinturón
         for sx in (-1, 1):
-            bc = Vector((sx * 0.75, -0.6, 2.0))
-            T.append(box((0.36, 0.22, 0.34), bc, armor, bevel=0.03))
-            T.append(box((0.38, 0.24, 0.1), bc + Vector((0, 0, 0.14)), K["SHIRT2"], rot=(0.12, 0, 0), bevel=0.02))
-            T.append(box((0.08, 0.05, 0.08), bc + Vector((0, -0.13, 0.07)), gold, bevel=0))
+            bc = Vector((sx * 1.12, -0.05, 2.05))
+            T.append(box((0.24, 0.4, 0.34), bc, armor, bevel=0.03))
+            T.append(box((0.26, 0.42, 0.1), bc + Vector((0, 0, 0.14)), K["SHIRT2"], rot=(0, -sx * 0.12, 0), bevel=0.02))
+            T.append(box((0.05, 0.08, 0.08), bc + Vector((sx * 0.13, 0, 0.07)), gold, bevel=0))
         # estandarte del comandante
         pb = gc + Vector((-0.8, 0.3, 0.95))
         T.append(L.rod(pb, pb + Vector((0, 0, 1.7)), 0.04, gold))
@@ -1276,6 +1296,12 @@ def e_comandante():
         hexplate(A, sc, 0.95, (0, math.pi / 2, 0), armor, 0.12)
         hexplate(A, sc + Vector((0.07, 0, 0)), 0.98, (0, math.pi / 2, 0), gold, 0.03)
         hexplate(A, sc + Vector((0.08, 0, 0)), 0.9, (0, math.pi / 2, 0), dark, 0.03)
+        hp = cyl(0.95, 0.12, sc + Vector((0.01, 0, 0)), armor, rot=(0, math.pi / 2, 0), verts=6, bevel=0)
+        A.append(hp)
+        corners = [hp.matrix_world @ v.co for v in hp.data.vertices if (hp.matrix_world @ v.co).x > sc.x + 0.01]
+        for cp in corners:                                                          # púas en las 6 puntas
+            d = (cp - Vector((cp.x, sc.y, sc.z))).normalized()
+            A.append(cone(0.07, 0.3, cp + d * 0.12, steel, rot=d, verts=6))
         for k in range(7):                                                          # panal de 7 hexágonos
             if k == 0:
                 q = Vector((0, 0, 0))
@@ -1296,6 +1322,13 @@ def e_comandante():
         for k in range(4):
             a = k / 4 * 2 * math.pi
             R.append(box((0.08, 0.08, 0.35), (-1.5 + math.cos(a) * 0.5, math.sin(a) * 0.5, 2.0), gold, bevel=0))
+        R.append(cyl(0.28, 0.45, (-1.5, 0, 1.62), dark, verts=16, bevel=0.02))      # caño
+        for z in (1.72, 1.52):
+            R.append(L.torus(0.29, 0.035, Vector((-1.5, 0, z)), glow, seg=16, minor=4))
+        R.append(cyl(0.2, 0.04, (-1.5, 0, 1.38), glow, verts=16, bevel=0))          # boca de energía
+        for k in range(6):                                                          # aletas de enfriamiento
+            a = k / 6 * 2 * math.pi
+            R.append(box((0.22, 0.04, 0.35), (-1.5 + math.cos(a) * 0.38, math.sin(a) * 0.38, 1.66), armor, rot=(0, 0, a), bevel=0))
         # --- grebas de metal en las piernas (siguen descalzos)
         for nm, sx in (("RightLeg", -1), ("LeftLeg", 1)):
             x = sx * 0.5
