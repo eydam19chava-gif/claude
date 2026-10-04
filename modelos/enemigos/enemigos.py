@@ -1231,6 +1231,9 @@ def e_comandante():
         # gola de armadura alrededor del cuello
         T.append(cyl(0.68, 0.2, Vector((0, 0, 4.08)), armor, verts=24, bevel=0.03))
         T.append(L.torus(0.68, 0.035, Vector((0, 0, 4.18)), gold, seg=24, minor=4))
+        for sx in (-1, 1):                                                          # estrellas de rango en la gola
+            for k in range(3):
+                T.append(cyl(0.065, 0.03, Vector((sx * (0.22 + k * 0.14), -0.69, 4.08)), gold, rot=(math.pi / 2, 0, 0), verts=5, bevel=0))
         # faldón de placas sobre los muslos (adelante y a los costados)
         for x, y, w, rz in ((-0.5, -0.66, 0.8, 0), (0.5, -0.66, 0.8, 0), (-1.0, -0.2, 0.6, 1), (1.0, -0.2, 0.6, 1)):
             c = Vector((x, y, 1.72))
@@ -1254,6 +1257,23 @@ def e_comandante():
             T.append(box((0.24, 0.4, 0.34), bc, armor, bevel=0.03))
             T.append(box((0.26, 0.42, 0.1), bc + Vector((0, 0, 0.14)), K["SHIRT2"], rot=(0, -sx * 0.12, 0), bevel=0.02))
             T.append(box((0.05, 0.08, 0.08), bc + Vector((sx * 0.13, 0, 0.07)), gold, bevel=0))
+        # alas hexagonales a los costados del generador (3 placas en abanico por lado)
+        for sx in (-1, 1):
+            base = gc + Vector((sx * 0.92, 0.1, 0.2))
+            T.append(cyl(0.12, 0.3, base + Vector((sx * 0.1, 0, 0)), steel, rot=(0, math.pi / 2, 0), verts=10, bevel=0.01))
+            for k, (dx, dz, r) in enumerate(((0.75, 0.75, 0.42), (1.0, 0.05, 0.48), (0.75, -0.65, 0.38))):
+                c = base + Vector((sx * dx, 0.25, dz))
+                n = Vector((sx * 0.35, 1, 0.1 * (1 - k))).normalized()             # mira hacia atrás y un poco afuera
+                T.append(strut(base + Vector((sx * 0.15, 0, 0)), c, 0.07, 0.07, steel, bevel=0))
+                hexplate(T, c, r, n, gold, 0.06)
+                hexplate(T, c + n * 0.035, r * 0.82, n, armor, 0.03)
+                hexplate(T, c + n * 0.055, r * 0.55, n, glow, 0.03)
+        # marcas de batalla: rayones en las hombreras y el generador
+        for sx in (-1, 1):
+            for k in range(3):
+                T.append(box((0.4, 0.05, 0.025), (sx * (1.3 + k * 0.08), -0.35 + k * 0.08, 4.43), K["SHIRT2"], rot=(0, 0, sx * 0.7), bevel=0))
+        for k in range(3):
+            T.append(box((0.03, 0.025, 0.5), gc + Vector((0.3 + k * 0.09, 0.44, -0.55)), black, rot=(0, 0.5, 0), bevel=0))
         # estandarte del comandante
         pb = gc + Vector((-0.8, 0.3, 0.95))
         T.append(L.rod(pb, pb + Vector((0, 0, 1.7)), 0.04, gold))
