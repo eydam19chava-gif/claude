@@ -21,9 +21,12 @@ __all__ = [
 # Fichas de cada primitiva por parte unida (para armar modelos de Roblox hechos de Parts, ver rbxmx.py).
 # SPECS[nombre_parte] = [dict(prim, M, dims, rgb, glow, ...)]
 SPECS = {}
+BEVEL_SEGMENTS = 2                                                           # cortes del bisel (1 = menos triángulos)
 
 
 def reset():
+    global BEVEL_SEGMENTS
+    BEVEL_SEGMENTS = 2
     SPECS.clear()
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
@@ -63,12 +66,12 @@ def palette(armor, armor_light, neon):
     }
 
 
-def _finish(obj, mat, bevel, segments=2):
+def _finish(obj, mat, bevel, segments=None):
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     if bevel:
         mod = obj.modifiers.new("Bevel", "BEVEL")
         mod.width = bevel
-        mod.segments = segments
+        mod.segments = segments or BEVEL_SEGMENTS
         mod.limit_method = "ANGLE"
         bpy.ops.object.modifier_apply(modifier=mod.name)
     obj.data.materials.append(mat)
@@ -149,6 +152,7 @@ def join(parts, name, origin):
             glow = bsdf.inputs["Emission Strength"].default_value > 0
             spec = {k: p[k] for k in p.keys() if k in ("prim", "verts", "r1", "r2", "depth", "a0", "R", "r")}
             spec.update(M=p.matrix_world.copy(), dims=p.dimensions.copy(), rgb=_mat_rgb(m), glow=glow,
+                        tris=sum(len(f.vertices) - 2 for f in p.data.polygons),
                         metal=bsdf.inputs["Metallic"].default_value)
             specs.append(spec)
     scene = bpy.context.scene

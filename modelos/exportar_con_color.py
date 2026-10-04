@@ -32,6 +32,22 @@ def glows(m):
     return bsdf.inputs["Emission Strength"].default_value > 0 and max(bsdf.inputs["Emission Color"].default_value[:3]) > 0
 
 
+def _fix_mtl(path):
+    """Blender escribe Kd en valores lineales (salen muy oscuros): poner el color real RRGGBB/255 de cada material."""
+    out, key = [], None
+    for ln in open(path).read().split("\n"):
+        if ln.startswith("newmtl C_"):
+            key = ln.split("C_", 1)[1]
+            out.append(ln)
+            continue
+        if key and ln.split(" ")[0] in ("Kd", "Ka", "Ke"):
+            rgb = [int(key[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+            val = {"Kd": rgb, "Ka": [0, 0, 0], "Ke": rgb if key.endswith("_N") else [0, 0, 0]}[ln.split(" ")[0]]
+            ln = ln.split(" ")[0] + " " + " ".join(f"{v:.6f}" for v in val)
+        out.append(ln)
+    open(path, "w").write("\n".join(out))
+
+
 def export(name):
     bpy.ops.wm.open_mainfile(filepath=find_blend(name))
     meshes = [o for o in bpy.data.objects if o.type == "MESH"]
@@ -69,6 +85,13 @@ def export(name):
             o.name = o.data.name = f"{joint}__{key}"
             o.data.materials.clear()
             o.data.materials.append(cache[key])
+            # color por vértice (va adentro del mismo .obj como "v x y z r g b")
+            hx = key[:6]
+            rgb = tuple(int(hx[i:i + 2], 16) / 255 for i in (0, 2, 4))
+            ca = o.data.color_attributes.new(name="Color", type="BYTE_COLOR", domain="POINT")
+            for d in ca.data:
+                d.color_srgb = (*rgb, 1.0)
+            o.data.color_attributes.active_color = ca
     objs = [o for o in bpy.data.objects if o.type == "MESH"]
     os.makedirs(OUT, exist_ok=True)
     path = os.path.join(OUT, name)
@@ -77,7 +100,7 @@ def export(name):
     # export_object_groups: cada pieza sale como "g Nombre"; Roblox separa las mallas por grupo (sin esto junta
     # todo en una sola malla "default" y se pierden los nombres con el color)
     bpy.ops.wm.obj_export(filepath=path + ".obj", export_materials=True, path_mode="STRIP",
-                          forward_axis="NEGATIVE_Z", up_axis="Y", export_object_groups=True)
+                          forward_axis="NEGATIVE_Z", up_axis="Y", export_object_groups=True, export_colors=True)
     lines = open(path + ".obj").read().split("\n")                           # "g X_X" (objeto_malla) -> "g X"
     for i, ln in enumerate(lines):
         if ln.startswith("g "):
@@ -86,6 +109,7 @@ def export(name):
             if len(g) % 2 == 1 and g[:half] == g[half + 1:]:
                 lines[i] = "g " + g[:half]
     open(path + ".obj", "w").write("\n".join(lines))
+    _fix_mtl(path + ".mtl")
     print(f"LISTO {name}: {len(objs)} piezas, {L.count_tris(objs)} triángulos")
 
 

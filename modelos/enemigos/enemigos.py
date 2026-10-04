@@ -1125,6 +1125,7 @@ def e_excavador():
 def e_comandante():
     """Jefe Comandante Escudo: zombi gigante con un generador de escudos enorme (los escudos se crean en el juego)."""
     s = 2.5
+    L.BEVEL_SEGMENTS = 1                                                       # bisel de un corte: menos de 20.000 triángulos
     K = _zb_mats()
     K.update(SHIRT=mat("Uniforme_Rojo", (0.42, 0.03, 0.04)), SHIRT2=mat("Uniforme_Rojo_Oscuro", (0.2, 0.01, 0.02)),
              PANTS=mat("Pantalon_Azul", (0.06, 0.09, 0.35)))
